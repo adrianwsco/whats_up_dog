@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>What's Up Dog? — Daily Reporter</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#FDF8F3;--surface:#FFFFFF;--accent:#C4611A;--accent-soft:#FFF3E8;
+  --ink:#1C0F04;--ink-mid:#6B4C35;--ink-light:#AE8E74;--border:#EAD9C8;
+  --green:#1E7A4A;--green-soft:#D6F0E2;--red:#A83030;--red-soft:#FFE8E8;
+  --amber:#8A6000;--amber-soft:#FFF7DC;--blue:#1A5FA8;--blue-soft:#E8F0FF;
+}
+body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--ink);font-size:15px;min-height:100vh}
+.serif{font-family:'Playfair Display',serif}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px}
+.btn{font-family:'DM Sans',sans-serif;font-weight:600;font-size:14px;border-radius:9px;padding:10px 22px;cursor:pointer;border:none;transition:all .15s;display:inline-flex;align-items:center;gap:8px;line-height:1}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover:not(:disabled){background:#A8510F;transform:translateY(-1px)}
+.btn-primary:disabled{background:#D4AE94;cursor:not-allowed;transform:none}
+.btn-ghost{background:transparent;color:var(--ink-mid);border:1.5px solid var(--border)}
+.btn-ghost:hover:not(:disabled){background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.btn-ghost:disabled{opacity:.45;cursor:not-allowed}
+.btn-sm{font-size:12px;padding:5px 12px;border-radius:7px}
+.btn-danger{background:var(--red-soft);color:var(--red);border:1.5px solid #F0BEBE}
+.btn-danger:hover{background:#FFD8D8}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:2px solid transparent;transition:all .15s;user-select:none}
+.chip-off{background:#F5EBE0;color:var(--ink-mid);border-color:var(--border)}
+.chip-on{color:#fff}
+.chip-ai{border-style:dashed!important;background:var(--surface)}
+.spin{display:inline-block;width:16px;height:16px;border:2.5px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .75s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.fade-in{animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.pulse{animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.upload-zone{border:2px dashed var(--border);border-radius:14px;padding:40px 24px;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg)}
+.upload-zone:hover,.upload-zone.drag-over{border-color:var(--accent);background:var(--accent-soft)}
+textarea,input[type=text],input[type=date],input[type=email]{font-family:'DM Sans',sans-serif}
+input[type=date]{border:1.5px solid var(--border);border-radius:8px;padding:9px 13px;font-size:14px;width:100%;outline:none;color:var(--ink);background:#fff}
+input[type=date]:focus,textarea:focus,input:focus{outline:none;border-color:var(--accent)!important}
+.error-banner{background:var(--red-soft);border:1px solid #F0BEBE;border-radius:10px;padding:14px 18px;font-size:13px;color:var(--red);display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.notice-banner{background:var(--amber-soft);border:1px solid #D4A820;border-radius:9px;padding:10px 14px;font-size:12px;color:var(--amber);font-weight:600;display:flex;align-items:center;gap:8px}
+.demo-banner{background:var(--blue-soft);border:1px solid #A0BEED;border-radius:9px;padding:10px 14px;font-size:12px;color:var(--blue);font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:18px}
+.status-pill{font-size:11px;font-weight:700;padding:4px 11px;border-radius:18px;white-space:nowrap}
+.pill-ready{color:var(--ink-light)}
+.pill-working{color:var(--accent);background:var(--accent-soft)}
+.pill-done{background:var(--green-soft);color:var(--green)}
+.pill-skip{background:#F0E4D8;color:var(--ink-light)}
+.pill-error{background:var(--red-soft);color:var(--red)}
+#header{background:#fff;border-bottom:1px solid var(--border);padding:13px 28px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100}
+#progress-bar{background:#fff;border-bottom:1px solid var(--border);padding:14px 28px;display:none}
+.progress-inner{display:flex;align-items:center;max-width:560px;margin:0 auto}
+.prog-step{display:flex;flex-direction:column;align-items:center;gap:4px}
+.prog-dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;transition:all .3s}
+.prog-dot.pending{background:#F0E4D8;color:var(--ink-light)}
+.prog-dot.active{background:var(--accent);color:#fff;box-shadow:0 0 0 4px rgba(196,97,26,.18)}
+.prog-dot.done{background:var(--accent);color:#fff}
+.prog-label{font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
+.prog-label.pending{color:var(--ink-light)}
+.prog-label.active,.prog-label.done{color:var(--accent)}
+.prog-line{flex:1;height:1.5px;margin:0 3px;margin-bottom:14px;transition:background .3s}
+.prog-line.done{background:var(--accent)}
+.prog-line.pending{background:#EAD9C8}
+#main{max-width:820px;margin:0 auto;padding:36px 24px 100px}
+.step{display:none}
+.step.active{display:block}
+#nav-bar{display:flex;justify-content:space-between;margin-top:36px;padding-top:22px;border-top:1px solid var(--border)}
+.dog-card{border-left:4px solid;padding:16px 18px;background:#fff;border-radius:0 12px 12px 0;border:1px solid var(--border)}
+.photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.transcript-box{width:100%;min-height:180px;padding:14px;border:1.5px solid var(--border);border-radius:11px;font-size:13px;line-height:1.8;color:var(--ink);resize:vertical;background:#fff}
+.inline-input{width:100%;border:1.5px solid var(--border);border-radius:7px;padding:8px 11px;font-size:13px;font-family:'DM Sans',sans-serif;color:var(--ink);background:#fff}
+.inline-textarea{width:100%;min-height:190px;border:1.5px solid var(--border);border-radius:7px;padding:10px 11px;font-size:12px;line-height:1.75;resize:vertical;color:var(--ink);font-family:'DM Sans',sans-serif;background:#fff}
+.send-row{padding:14px 18px;display:flex;align-items:center;gap:12px}
+.send-statuses{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <span style="font-size:22px">🐾</span>
+  <div>
+    <div class="serif" style="font-size:19px;line-height:1">What's Up Dog?</div>
+    <div style="font-size:10px;color:var(--ink-light);font-weight:700;letter-spacing:.05em;text-transform:uppercase">Daily Reporter</div>
+  </div>
+  <div id="header-meta" style="display:none;margin-left:auto;display:none;gap:10px;align-items:center">
+    <span id="session-badge" style="font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px"></span>
+    <span id="date-badge" style="font-size:12px;color:var(--ink-mid);font-weight:500"></span>
+  </div>
+</div>
+
+<!-- PROGRESS -->
+<div id="progress-bar">
+  <div class="progress-inner" id="progress-inner"></div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- STEP 0: SETUP -->
+  <div class="step active" id="step-0">
+    <h1 class="serif" style="font-size:38px;margin-bottom:6px">Good day, What's Up Dog? 🌞</h1>
+    <p style="color:var(--ink-mid);margin-bottom:28px">Set up today's reporting session to get started.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div class="card session-card" data-session="morning" onclick="selectSession('morning')" style="padding:24px;cursor:pointer;transition:all .2s">
+        <div style="font-size:36px;margin-bottom:8px">☀️</div>
+        <div class="serif" style="font-size:20px;margin-bottom:4px">Morning Session</div>
+        <div style="font-size:12px;color:var(--ink-mid)">Mid-morning check-in to parents</div>
+      </div>
+      <div class="card session-card" data-session="afternoon" onclick="selectSession('afternoon')" style="padding:24px;cursor:pointer;transition:all .2s">
+        <div style="font-size:36px;margin-bottom:8px">🌅</div>
+        <div class="serif" style="font-size:20px;margin-bottom:4px">Afternoon Session</div>
+        <div style="font-size:12px;color:var(--ink-mid)">End-of-day full recap report</div>
+      </div>
+    </div>
+    <div class="card" style="padding:18px;margin-bottom:14px">
+      <label style="font-size:11px;font-weight:700;color:var(--ink-mid);display:block;margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Date</label>
+      <input type="date" id="session-date">
+    </div>
+    <div class="card" style="padding:18px;margin-bottom:30px">
+      <div style="font-size:11px;font-weight:700;color:var(--ink-mid);margin-bottom:12px;text-transform:uppercase;letter-spacing:.05em">Today's Dogs</div>
+      <div id="dog-roster" style="display:flex;gap:9px;flex-wrap:wrap"></div>
+    </div>
+    <button class="btn btn-primary" onclick="startSession()" style="font-size:15px;padding:12px 28px">Start Session →</button>
+  </div>
+
+  <!-- STEP 1: AUDIO -->
+  <div class="step" id="step-1">
+    <h2 class="serif" id="audio-title" style="font-size:30px;margin-bottom:6px">☀️ Audio Recording</h2>
+    <p style="color:var(--ink-mid);margin-bottom:20px">Upload the staff recording — Whisper will transcribe it automatically.</p>
+    <div class="demo-banner">ℹ️ Demo mode — any audio file loads a realistic mock transcript automatically</div>
+    <div class="upload-zone" id="audio-zone" onclick="document.getElementById('audio-input').click()"
+         ondrop="handleAudioDrop(event)" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')">
+      <input type="file" id="audio-input" accept="audio/*" style="display:none" onchange="handleAudioFile(this.files[0])">
+      <div style="font-size:44px;margin-bottom:10px">🎙️</div>
+      <div style="font-weight:700;font-size:15px;margin-bottom:5px">Drop audio file or click to upload</div>
+      <div style="font-size:12px;color:var(--ink-light)">MP3 · M4A · WAV · any audio format</div>
+    </div>
+    <div id="audio-status" style="display:none" class="card fade-in">
+      <div style="display:flex;align-items:center;gap:12px;padding:18px">
+        <span style="font-size:26px">🎙️</span>
+        <div style="flex:1">
+          <div id="audio-filename" style="font-weight:700"></div>
+          <div id="audio-size" style="font-size:11px;color:var(--ink-light)"></div>
+        </div>
+        <div id="audio-spinner" class="spin"></div>
+        <span id="audio-done" style="display:none;font-size:12px;font-weight:700;color:var(--green);background:var(--green-soft);padding:4px 12px;border-radius:20px">✓ Transcribed</span>
+      </div>
+      <div id="transcribing-banner" style="margin:0 18px 14px;background:var(--accent-soft);border-radius:9px;padding:10px 14px">
+        <span class="pulse" style="font-size:12px;font-weight:600;color:var(--accent)">🔄 Transcribing via Whisper…</span>
+      </div>
+    </div>
+    <div id="transcript-area" style="display:none;margin-top:20px" class="fade-in">
+      <div style="font-size:11px;font-weight:700;color:var(--ink-mid);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Transcript — edit if needed</div>
+      <textarea class="transcript-box" id="transcript-text" oninput="transcript=this.value"></textarea>
+    </div>
+  </div>
+
+  <!-- STEP 2: PHOTOS -->
+  <div class="step" id="step-2">
+    <h2 class="serif" style="font-size:30px;margin-bottom:6px">📸 Photos</h2>
+    <p style="color:var(--ink-mid);margin-bottom:20px">Upload today's photos and tag which dogs appear — or let AI suggest.</p>
+    <div class="upload-zone" id="photo-zone" onclick="document.getElementById('photo-input').click()"
+         ondrop="handlePhotoDrop(event)" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" style="padding:28px;margin-bottom:20px">
+      <input type="file" id="photo-input" accept="image/*" multiple style="display:none" onchange="handlePhotoFiles(this.files)">
+      <div style="font-size:36px;margin-bottom:8px">📷</div>
+      <div style="font-weight:700;font-size:14px;margin-bottom:4px">Add photos — drop or click</div>
+      <div style="font-size:12px;color:var(--ink-light)">JPG · PNG · multiple files OK</div>
+    </div>
+    <div id="photo-empty" style="text-align:center;padding:32px 0;color:var(--ink-light);font-size:13px">No photos yet — upload some above, or skip this step to continue.</div>
+    <div id="photo-grid" class="photo-grid" style="display:none"></div>
+  </div>
+
+  <!-- STEP 3: SUMMARIES -->
+  <div class="step" id="step-3">
+    <h2 class="serif" style="font-size:30px;margin-bottom:6px">📋 Per-Dog Summaries</h2>
+    <p style="color:var(--ink-mid);margin-bottom:22px">Claude parsed the transcript. Review before emails are drafted.</p>
+    <div id="summaries-error" style="display:none" class="error-banner fade-in">
+      <span style="font-size:20px;flex-shrink:0">⚠️</span>
+      <div style="flex:1">
+        <div style="font-weight:700;margin-bottom:3px">Couldn't generate summaries</div>
+        <div id="summaries-error-msg" style="font-size:12px;opacity:.85"></div>
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="generateSummaries(true)">Try again</button>
+    </div>
+    <div id="summaries-loading" style="text-align:center;padding:70px 0;display:none">
+      <div style="font-size:48px;margin-bottom:12px">🤖</div>
+      <div class="serif" style="font-size:26px;margin-bottom:8px">Parsing transcript…</div>
+      <div style="color:var(--ink-mid);font-size:13px;margin-bottom:20px">Claude is extracting per-dog notes from the recording.</div>
+      <div class="spin" style="width:26px;height:26px;margin:0 auto"></div>
+    </div>
+    <div id="summaries-list" style="display:flex;flex-direction:column;gap:12px"></div>
+  </div>
+
+  <!-- STEP 4: EMAILS -->
+  <div class="step" id="step-4">
+    <h2 class="serif" style="font-size:30px;margin-bottom:6px">✉️ Email Drafts</h2>
+    <p style="color:var(--ink-mid);margin-bottom:22px">Review and edit each email before creating Gmail drafts.</p>
+    <div id="emails-error" style="display:none" class="error-banner fade-in">
+      <span style="font-size:20px;flex-shrink:0">⚠️</span>
+      <div style="flex:1">
+        <div style="font-weight:700;margin-bottom:3px">Couldn't generate all emails</div>
+        <div id="emails-error-msg" style="font-size:12px;opacity:.85"></div>
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="generateEmails(true)">Try again</button>
+    </div>
+    <div id="emails-loading" style="text-align:center;padding:70px 0;display:none">
+      <div style="font-size:48px;margin-bottom:12px">✉️</div>
+      <div class="serif" style="font-size:26px;margin-bottom:8px">Drafting emails…</div>
+      <div style="color:var(--ink-mid);font-size:13px;margin-bottom:20px">Writing a personalised email for each dog's parent.</div>
+      <div class="spin" style="width:26px;height:26px;margin:0 auto"></div>
+    </div>
+    <div id="emails-list" style="display:flex;flex-direction:column;gap:12px"></div>
+  </div>
+
+  <!-- STEP 5: SEND -->
+  <div class="step" id="step-5">
+    <h2 class="serif" id="send-title" style="font-size:30px;margin-bottom:6px">📤 Save & Send</h2>
+    <p id="send-subtitle" style="color:var(--ink-mid);margin-bottom:10px;font-size:13px">
+      Saves reports and photos to Google Drive, then creates one Gmail draft per dog parent.
+    </p>
+    <div id="drive-notice" style="display:none;margin-bottom:18px" class="notice-banner">
+      ⚠️ Google Drive not configured — reports won't be saved. Add your Drive script URL to enable.
+    </div>
+    <div id="send-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px"></div>
+    <div id="photos-send-row" style="display:none" class="card" style="margin-bottom:20px"></div>
+    <div style="margin-bottom:28px"></div>
+    <button class="btn btn-primary" id="send-btn" onclick="sendAll()" style="font-size:15px;padding:12px 26px">
+      📬 Save to Drive + Create Gmail Drafts
+    </button>
+    <div id="send-complete" style="display:none;background:var(--green-soft);border:1px solid #A0D8BC;border-radius:14px;padding:32px;text-align:center;margin-top:20px">
+      <div style="font-size:48px;margin-bottom:10px">🐾</div>
+      <div class="serif" style="font-size:26px;margin-bottom:8px;color:#1A5C3A">Session complete!</div>
+      <div style="color:var(--green);font-size:13px">Reports saved to Drive. Gmail drafts ready — review and send when you're ready.</div>
+    </div>
+  </div>
+
+  <!-- NAV -->
+  <div id="nav-bar" style="display:none">
+    <button class="btn btn-ghost" onclick="prevStep()">← Back</button>
+    <button class="btn btn-primary" id="next-btn" onclick="nextStep()">Continue →</button>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// CONFIG — hosted version (API key lives in Netlify environment variables)
+// ═══════════════════════════════════════════════════════════════════════════
+const DRIVE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzv4P8EzrhmZRFLK5BiJrFppIwJRRDfVcEWXUpnqbxVxxxGJx-3KDKEzNJzZhEPnHusOQ/exec';
+const DRIVE_ENABLED    = DRIVE_SCRIPT_URL !== 'YOUR_APPS_SCRIPT_DEPLOYMENT_URL';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════════════════════
+const DOGS = [
+  {id:'baxter',  name:'Baxter',  breed:'Golden Retriever',age:3,ownerName:'Sarah Chen',     ownerEmail:'sarah.chen@example.com',  feeding:'Half cup dry kibble at noon',   medical:null,                                     notes:'Loves fetch, can get mouthy when overstimulated'},
+  {id:'luna',    name:'Luna',    breed:'Border Collie',   age:2,ownerName:'Marcus Webb',    ownerEmail:'m.webb@example.com',       feeding:'No feeding at daycare',          medical:null,                                     notes:'High energy, herding instinct, needs mental stimulation'},
+  {id:'pretzel', name:'Pretzel', breed:'Dachshund',       age:5,ownerName:'Diane Kowalski', ownerEmail:'diane.k@example.com',      feeding:'Small treat OK',                 medical:'Spinal condition — no jumping, no rough play',notes:'Very chill, loves sunny spots'},
+  {id:'mochi',   name:'Mochi',   breed:'Shiba Inu',       age:1,ownerName:'James Park',     ownerEmail:'jpark@example.com',        feeding:'Half cup at noon if offered',    medical:null,                                     notes:'Still socializing, cautious with unfamiliar dogs'},
+  {id:'gus',     name:'Gus',     breed:'Labrador',        age:4,ownerName:'Priya Nair',     ownerEmail:'priya.nair@example.com',   feeding:'No feeding — owner strict',      medical:'Monitor water intake',                   notes:'Toy hoarder, food motivated, loves mud'},
+];
+const META = {
+  baxter: {emoji:'🐕',color:'#C4751A',bg:'#FFF3E0'},
+  luna:   {emoji:'🐩',color:'#5B6FBF',bg:'#EEF0FF'},
+  pretzel:{emoji:'🌭',color:'#C04A20',bg:'#FFF0EC'},
+  mochi:  {emoji:'🦊',color:'#B03C60',bg:'#FFE8F0'},
+  gus:    {emoji:'🐶',color:'#2A7C58',bg:'#E4F5EE'},
+};
+const MOCK = {
+  morning: `Good morning, this is the What's Up Dog? morning check-in. All five dogs are in and it's a great start. Baxter came in absolutely buzzing with energy — he was zooming around the yard within two minutes and made a beeline straight for Gus. Those two are best friends at this point. Luna came in a little quietly this morning, she's been hanging near the fence doing her observation thing — she always warms up after about thirty minutes. Pretzel is already in his favourite sunny spot on the mat near the window, keeping him away from the climbing structure as usual for his back. Mochi was a little cautious coming in but she's already relaxing and showed some interest in playing with Luna. Gus drank a great amount of water right when he arrived which I was really happy about. All five dogs are settled, shaping up to be a fantastic day.`,
+  afternoon:`Afternoon wrap-up — what a day. Baxter was an absolute star at pool time, he jumped into the splash pad about fifteen times, completely soaked and loving every second. He's napping now, totally spent in the best way. Luna had a huge turnaround from her quiet morning — after lunch she and Mochi started doing this chase game around the yard. Mochi really came out of her shell today and ate her full lunch portion which James will be really happy to hear. Pretzel had an epic three-hour nap, completely content, no back issues noted at all today. Gus got into some mud during the afternoon outdoor session — totally his own doing — but we gave him a thorough rinse and he's clean and dry now. No incidents today, everyone played beautifully. Really great day.`,
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════════════
+let currentStep = 0;
+let session     = 'morning';
+let sessionDate = '';
+let transcript  = '';
+let photos      = [];
+let summaries   = {};
+let emailDrafts = {};
+let sendStatus  = {};   // {dogId: {drive:'',gmail:''}}
+let photoStatus = '';   // 'working'|'done'|'error'|''
+
+// ═══════════════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════════════
+window.onload = () => {
+  const d = new Date();
+  sessionDate = d.toISOString().split('T')[0];
+  document.getElementById('session-date').value = sessionDate;
+  renderRoster();
+  selectSession('morning');
+};
+
+function renderRoster() {
+  document.getElementById('dog-roster').innerHTML = DOGS.map(d =>
+    `<div style="display:flex;align-items:center;gap:8px;background:${META[d.id].bg};padding:8px 13px;border-radius:10px;border:1px solid ${META[d.id].color}33">
+      <span style="font-size:18px">${META[d.id].emoji}</span>
+      <div>
+        <div style="font-weight:700;font-size:13px">${d.name}</div>
+        <div style="font-size:11px;color:var(--ink-mid)">${d.breed}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════════════════════
+function showStep(n) {
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+  document.getElementById(`step-${n}`).classList.add('active');
+  currentStep = n;
+  const showNav = n > 0;
+  document.getElementById('nav-bar').style.display       = showNav ? 'flex' : 'none';
+  document.getElementById('progress-bar').style.display  = showNav ? 'block' : 'none';
+  document.getElementById('header-meta').style.display   = showNav ? 'flex' : 'none';
+  const nextBtn = document.getElementById('next-btn');
+  nextBtn.style.display   = n === 5 ? 'none' : 'inline-flex';
+  nextBtn.textContent     = n === 4 ? 'Review & Send →' : 'Continue →';
+  nextBtn.disabled        = n === 1 && !transcript;
+  if (n === 5) renderSendStep();
+  updateProgress();
+  window.scrollTo(0, 0);
+}
+
+function nextStep() {
+  if (currentStep === 1 && !transcript) return;
+  if (currentStep === 2) { showStep(3); generateSummaries(false); return; }
+  if (currentStep === 3) { showStep(4); generateEmails(false);    return; }
+  showStep(Math.min(currentStep + 1, 5));
+}
+function prevStep() { showStep(Math.max(currentStep - 1, 0)); }
+
+function updateProgress() {
+  const labels = ['Audio','Photos','Summaries','Emails','Send'];
+  document.getElementById('progress-inner').innerHTML = labels.map((label, i) => {
+    const n = i + 1;
+    const s = n < currentStep ? 'done' : n === currentStep ? 'active' : 'pending';
+    const line = i < labels.length - 1
+      ? `<div class="prog-line ${n < currentStep ? 'done' : 'pending'}" style="flex:1"></div>` : '';
+    return `<div class="prog-step">
+      <div class="prog-dot ${s}">${s === 'done' ? '✓' : n}</div>
+      <div class="prog-label ${s}">${label}</div>
+    </div>${line}`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STEP 0 — SETUP
+// ═══════════════════════════════════════════════════════════════════════════
+function selectSession(s) {
+  session = s;
+  document.querySelectorAll('.session-card').forEach(c => {
+    const sel = c.dataset.session === s;
+    c.style.border     = sel ? '2px solid var(--accent)' : '1px solid var(--border)';
+    c.style.background = sel ? 'var(--accent-soft)' : '#fff';
+  });
+}
+
+function startSession() {
+  sessionDate = document.getElementById('session-date').value;
+  const badge = document.getElementById('session-badge');
+  badge.textContent     = session === 'morning' ? '☀️ Morning' : '🌅 Afternoon';
+  badge.style.background = session === 'morning' ? '#FFF7E0' : '#EEF0FF';
+  badge.style.color      = session === 'morning' ? '#A06010' : '#4A5BAA';
+  document.getElementById('date-badge').textContent =
+    new Date(sessionDate + 'T12:00:00').toLocaleDateString('en-CA',{weekday:'short',month:'short',day:'numeric'});
+  document.getElementById('audio-title').textContent =
+    (session === 'morning' ? '☀️' : '🌅') + ' Audio Recording';
+  showStep(1);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STEP 1 — AUDIO
+// ═══════════════════════════════════════════════════════════════════════════
+function handleAudioDrop(e) {
+  e.preventDefault();
+  document.getElementById('audio-zone').classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) handleAudioFile(e.dataTransfer.files[0]);
+}
+
+async function handleAudioFile(file) {
+  document.getElementById('audio-zone').style.display = 'none';
+  document.getElementById('audio-status').style.display = 'block';
+  document.getElementById('audio-filename').textContent = file.name;
+  document.getElementById('audio-size').textContent = (file.size / 1024).toFixed(0) + ' KB';
+
+  await delay(2200);
+
+  document.getElementById('audio-spinner').style.display = 'none';
+  document.getElementById('transcribing-banner').style.display = 'none';
+  document.getElementById('audio-done').style.display = 'inline';
+
+  transcript = MOCK[session];
+  document.getElementById('transcript-area').style.display = 'block';
+  document.getElementById('transcript-text').value = transcript;
+  document.getElementById('next-btn').disabled = false;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STEP 2 — PHOTOS
+// ═══════════════════════════════════════════════════════════════════════════
+function handlePhotoDrop(e) {
+  e.preventDefault();
+  document.getElementById('photo-zone').classList.remove('drag-over');
+  handlePhotoFiles(e.dataTransfer.files);
+}
+
+async function handlePhotoFiles(files) {
+  for (const file of Array.from(files)) {
+    const dataUrl = await readFile(file);
+    photos.push({id:uid(), name:file.name, dataUrl, taggedDogs:[], aiSuggested:[], aiReasoning:''});
+  }
+  renderPhotos();
+}
+
+function renderPhotos() {
+  const grid = document.getElementById('photo-grid');
+  document.getElementById('photo-empty').style.display = photos.length ? 'none' : 'block';
+  grid.style.display = photos.length ? 'grid' : 'none';
+  grid.innerHTML = photos.map(photo => `
+    <div class="card" style="overflow:hidden" id="photo-${photo.id}">
+      <img src="${photo.dataUrl}" style="width:100%;height:185px;object-fit:cover;display:block" alt="${photo.name}">
+      <div style="padding:13px">
+        <div style="font-size:10px;font-weight:700;color:var(--ink-light);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Tag dogs in this photo</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:11px">
+          ${DOGS.map(dog => {
+            const on = photo.taggedDogs.includes(dog.id);
+            const ai = photo.aiSuggested.includes(dog.id) && !on;
+            const s  = on  ? `background:${META[dog.id].color};border-color:${META[dog.id].color};color:#fff`
+                     : ai  ? `border-color:${META[dog.id].color};color:${META[dog.id].color};border-style:dashed;background:#fff`
+                     : '';
+            return `<span class="chip ${on?'chip-on':ai?'chip-ai':'chip-off'}" style="${s}" onclick="toggleTag('${photo.id}','${dog.id}')">
+              ${META[dog.id].emoji} ${dog.name}${ai?' ✨':''}
+            </span>`;
+          }).join('')}
+        </div>
+        ${photo.aiSuggested.length && photo.aiSuggested.some(id => !photo.taggedDogs.includes(id)) ? `
+          <div style="margin-bottom:9px">
+            <div style="font-size:11px;color:var(--ink-mid);font-style:italic;margin-bottom:6px">✨ ${photo.aiReasoning}</div>
+            <button class="btn btn-ghost btn-sm" onclick="applyAi('${photo.id}')">Apply AI suggestions</button>
+          </div>` : ''}
+        <button class="btn btn-ghost btn-sm" id="ai-btn-${photo.id}" onclick="suggestAi('${photo.id}')">✨ AI Suggest</button>
+      </div>
+    </div>`).join('');
+}
+
+function toggleTag(pid, did) {
+  const p = photos.find(x => x.id === pid); if (!p) return;
+  p.taggedDogs = p.taggedDogs.includes(did) ? p.taggedDogs.filter(d => d !== did) : [...p.taggedDogs, did];
+  renderPhotos();
+}
+
+function applyAi(pid) {
+  const p = photos.find(x => x.id === pid); if (!p) return;
+  p.taggedDogs = [...new Set([...p.taggedDogs, ...p.aiSuggested])];
+  renderPhotos();
+}
+
+async function suggestAi(pid) {
+  const photo = photos.find(x => x.id === pid); if (!photo) return;
+  const btn = document.getElementById(`ai-btn-${pid}`);
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin" style="width:12px;height:12px;border-width:2px"></span> Analyzing…';
+  try {
+    const base64 = photo.dataUrl.split(',')[1];
+    const mt     = photo.dataUrl.split(';')[0].split(':')[1];
+    const data   = await callClaude([{role:'user',content:[
+      {type:'image',source:{type:'base64',media_type:mt,data:base64}},
+      {type:'text', text:`Dogs today: ${DOGS.map(d=>`${d.id}="${d.name}" (${d.breed})`).join(', ')}. Which are visible in this photo based on breed appearance? Respond ONLY with JSON: {"suggestedDogs":["id1"],"reasoning":"one sentence"}`},
+    ]}]);
+    const result = safeJSON(getText(data));
+    photo.aiSuggested = (result.suggestedDogs || []).filter(id => DOGS.some(d => d.id === id));
+    photo.aiReasoning = result.reasoning || '';
+  } catch(e) {
+    console.error('AI suggest failed:', e);
+  }
+  renderPhotos();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STEP 3 — SUMMARIES
+// ═══════════════════════════════════════════════════════════════════════════
+async function generateSummaries(force) {
+  if (Object.keys(summaries).length && !force) { renderSummaries(); return; }
+  summaries = {};
+  hide('summaries-error');
+  show('summaries-loading');
+  hide('summaries-list');
+  try {
+    const data = await callClaude([{role:'user',content:
+      `Parse this ${session} daycare transcript. Dogs: ${DOGS.map(d=>`${d.id}="${d.name}"`).join(', ')}.\n\nTranscript:\n${transcript}\n\nReturn ONLY valid JSON with all five dog IDs:\n{"baxter":{"summary":"2-3 warm sentences about this dog's day","highlights":["specific positive moment"],"concerns":[]},"luna":{...},"pretzel":{...},"mochi":{...},"gus":{...}}`
+    }], 'You parse daycare staff audio notes accurately and warmly. Return only valid JSON, no commentary.');
+    summaries = safeJSON(getText(data));
+    hide('summaries-loading');
+    show('summaries-list');
+    renderSummaries();
+  } catch(e) {
+    hide('summaries-loading');
+    show('summaries-error');
+    document.getElementById('summaries-error-msg').textContent = e.message || 'Unexpected error — check your API key and try again.';
+  }
+}
+
+function renderSummaries() {
+  document.getElementById('summaries-list').innerHTML = DOGS.map(dog => {
+    const s = summaries[dog.id] || {};
+    return `
+      <div class="dog-card" style="border-left-color:${META[dog.id].color}">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <span style="font-size:22px">${META[dog.id].emoji}</span>
+          <div style="flex:1">
+            <div style="font-weight:700;font-size:15px">${dog.name}</div>
+            <div style="font-size:11px;color:var(--ink-mid)">${dog.breed} · ${dog.ownerName}</div>
+          </div>
+          ${dog.medical ? `<div style="font-size:11px;background:#FFF0E0;color:#A04000;padding:3px 10px;border-radius:7px;font-weight:700">⚠ ${dog.medical}</div>` : ''}
+        </div>
+        ${s.summary
+          ? `<p style="font-size:13px;line-height:1.75;color:var(--ink);margin-bottom:9px">${s.summary}</p>
+             <div style="display:flex;flex-wrap:wrap;gap:5px">
+               ${(s.highlights||[]).map(h=>`<span style="background:var(--green-soft);color:var(--green);font-size:11px;font-weight:700;padding:3px 10px;border-radius:11px">✓ ${h}</span>`).join('')}
+               ${(s.concerns||[]).map(c=>`<span style="background:var(--red-soft);color:var(--red);font-size:11px;font-weight:700;padding:3px 10px;border-radius:11px">⚠ ${c}</span>`).join('')}
+             </div>`
+          : `<div style="color:var(--ink-light);font-size:13px;font-style:italic">No specific notes found in transcript.</div>`}
+      </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STEP 4 — EMAILS
+// ═══════════════════════════════════════════════════════════════════════════
+async function generateEmails(force) {
+  if (Object.keys(emailDrafts).length && !force) { renderEmails(); return; }
+  emailDrafts = {};
+  hide('emails-error');
+  show('emails-loading');
+  hide('emails-list');
+  let hadError = false;
+  for (const dog of DOGS) {
+    const s  = summaries[dog.id] || {};
+    const pc = photos.filter(p => p.taggedDogs.includes(dog.id)).length;
+    try {
+      const data = await callClaude([{role:'user',content:
+        `Write a ${session==='morning'?'mid-morning check-in':'warm end-of-day'} email from What's Up Dog? Daycare to ${dog.ownerName} about their ${dog.age}-year-old ${dog.breed}, ${dog.name}.\n\nDay notes: ${s.summary||'Had a wonderful day.'}\nHighlights: ${(s.highlights||[]).join(', ')||'None noted'}\nConcerns: ${(s.concerns||[]).join(', ')||'None'}\nPhotos taken of ${dog.name}: ${pc}\n\nTone: warm, specific, genuine — as if written by a real person who watched this dog today. Not corporate. Not generic. Mention the dog by name throughout.\n\nSign off: The What's Up Dog? Team.\n\nReturn ONLY valid JSON: {"subject":"...","body":"..."}`
+      }], 'Write warm, specific daycare parent emails. Return only valid JSON.');
+      emailDrafts[dog.id] = safeJSON(getText(data));
+    } catch(e) {
+      hadError = true;
+      emailDrafts[dog.id] = {
+        subject: `${dog.name}'s ${session==='morning'?'Morning Check-In':'End-of-Day Report'} — What's Up Dog?`,
+        body:    `Hi ${dog.ownerName},\n\n${dog.name} had a wonderful day at What's Up Dog?!\n\n${s.summary||''}\n\nThe What's Up Dog? Team`,
+        _error:  true,
+      };
+    }
+  }
+  hide('emails-loading');
+  show('emails-list');
+  if (hadError) {
+    show('emails-error');
+    document.getElementById('emails-error-msg').textContent = 'Some emails used fallback text. You can edit them below or try regenerating.';
+  }
+  renderEmails();
+}
+
+function renderEmails() {
+  document.getElementById('emails-list').innerHTML = DOGS.map(dog => {
+    const draft = emailDrafts[dog.id] || {};
+    const err   = draft._error;
+    return `
+      <div class="card" style="overflow:hidden${err?';border-color:#F0BEBE':''}">
+        <div style="padding:14px 18px;background:${META[dog.id].bg};border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
+          <span style="font-size:20px">${META[dog.id].emoji}</span>
+          <div style="flex:1">
+            <div style="font-weight:700">${dog.name}</div>
+            <div style="font-size:11px;color:var(--ink-mid)">To: ${dog.ownerName} · ${dog.ownerEmail}</div>
+          </div>
+          ${err ? '<span style="font-size:11px;font-weight:700;color:var(--red);background:var(--red-soft);padding:3px 9px;border-radius:8px">⚠ Fallback</span>' : ''}
+          <button class="btn btn-ghost btn-sm" id="edit-btn-${dog.id}" onclick="toggleEdit('${dog.id}')">Edit</button>
+        </div>
+        <div id="email-view-${dog.id}" style="padding:16px 18px">
+          <div style="font-weight:700;font-size:13px;margin-bottom:9px" id="email-subject-display-${dog.id}">📧 ${draft.subject||''}</div>
+          <div style="font-size:12px;line-height:1.85;color:#3A2010;white-space:pre-wrap" id="email-body-display-${dog.id}">${draft.body||''}</div>
+        </div>
+        <div id="email-edit-${dog.id}" style="padding:16px 18px;display:none">
+          <input class="inline-input" value="${esc(draft.subject||'')}" oninput="updateDraft('${dog.id}','subject',this.value)" style="margin-bottom:9px">
+          <textarea class="inline-textarea" oninput="updateDraft('${dog.id}','body',this.value)">${draft.body||''}</textarea>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function toggleEdit(dogId) {
+  const view    = document.getElementById(`email-view-${dogId}`);
+  const edit    = document.getElementById(`email-edit-${dogId}`);
+  const btn     = document.getElementById(`edit-btn-${dogId}`);
+  const editing = edit.style.display !== 'none';
+  if (editing) {
+    // Close edit — update view display without full re-render
+    const draft = emailDrafts[dogId] || {};
+    document.getElementById(`email-subject-display-${dogId}`).textContent = '📧 ' + (draft.subject || '');
+    document.getElementById(`email-body-display-${dogId}`).textContent    = draft.body || '';
+    edit.style.display = 'none';
+    view.style.display = 'block';
+    btn.textContent    = 'Edit';
+  } else {
+    view.style.display = 'none';
+    edit.style.display = 'block';
+    btn.textContent    = 'Done';
+  }
+}
+
+function updateDraft(dogId, field, val) {
+  if (!emailDrafts[dogId]) emailDrafts[dogId] = {};
+  emailDrafts[dogId][field] = val;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STEP 5 — SEND
+// ═══════════════════════════════════════════════════════════════════════════
+function renderSendStep() {
+  // Show Drive notice if not configured
+  document.getElementById('drive-notice').style.display = DRIVE_ENABLED ? 'none' : 'flex';
+  if (!DRIVE_ENABLED) {
+    document.getElementById('send-btn').textContent = '📬 Create Gmail Drafts';
+  }
+
+  // Dog rows
+  document.getElementById('send-list').innerHTML = DOGS.map(dog => {
+    const st    = sendStatus[dog.id] || {};
+    const draft = emailDrafts[dog.id] || {};
+    return `
+      <div class="card send-row" id="send-row-${dog.id}">
+        <span style="font-size:22px">${META[dog.id].emoji}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700">${dog.name}</div>
+          <div style="font-size:11px;color:var(--ink-mid)">${dog.ownerName} · ${dog.ownerEmail}</div>
+          ${draft.subject ? `<div style="font-size:10px;color:var(--ink-light);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">"${draft.subject}"</div>` : ''}
+        </div>
+        <div class="send-statuses" id="send-statuses-${dog.id}">
+          ${renderDogStatuses(st)}
+        </div>
+      </div>`;
+  }).join('');
+
+  // Photos row
+  const photoRow = document.getElementById('photos-send-row');
+  if (photos.length > 0) {
+    photoRow.style.display = 'block';
+    const tagged   = photos.filter(p => p.taggedDogs.length > 0).length;
+    const untagged = photos.length - tagged;
+    photoRow.innerHTML = `
+      <div class="send-row">
+        <span style="font-size:22px">📸</span>
+        <div style="flex:1">
+          <div style="font-weight:700">Photos (${photos.length})</div>
+          <div style="font-size:11px;color:var(--ink-mid)">${tagged} tagged · ${untagged} untagged</div>
+        </div>
+        <div id="photo-send-status">${renderPhotoStatus()}</div>
+      </div>`;
+  } else {
+    photoRow.style.display = 'none';
+  }
+}
+
+function renderDogStatuses(st) {
+  const driveHtml = DRIVE_ENABLED ? `
+    <span class="status-pill ${pillClass(st.drive)}">
+      ${st.drive==='working' ? '<span class="spin" style="width:11px;height:11px;border-width:2px"></span> ' : ''}
+      ${pillLabel(st.drive, 'Drive')}
+    </span>` : '';
+  const gmailHtml = `
+    <span class="status-pill ${pillClass(st.gmail)}">
+      ${st.gmail==='working' ? '<span class="spin" style="width:11px;height:11px;border-width:2px"></span> ' : ''}
+      ${pillLabel(st.gmail, 'Gmail')}
+    </span>`;
+  return driveHtml + gmailHtml;
+}
+
+function renderPhotoStatus() {
+  if (!DRIVE_ENABLED) return `<span class="status-pill pill-skip">Drive not configured</span>`;
+  return `<span class="status-pill ${pillClass(photoStatus)}">${pillLabel(photoStatus, 'Photos')}</span>`;
+}
+
+function pillClass(s) {
+  return s==='working'?'pill-working':s==='done'?'pill-done':s==='error'?'pill-error':s==='skip'?'pill-skip':'pill-ready';
+}
+function pillLabel(s, label) {
+  if (!s)           return label + ': Ready';
+  if (s==='working') return 'Saving…';
+  if (s==='done')    return '✓ ' + label;
+  if (s==='error')   return '✗ ' + label + ' failed';
+  if (s==='skip')    return label + ' skipped';
+  return label;
+}
+
+function updateDogStatus(dogId) {
+  const el = document.getElementById(`send-statuses-${dogId}`);
+  if (el) el.innerHTML = renderDogStatuses(sendStatus[dogId] || {});
+}
+function updatePhotoStatus() {
+  const el = document.getElementById('photo-send-status');
+  if (el) el.innerHTML = renderPhotoStatus();
+}
+
+async function sendAll() {
+  document.getElementById('send-btn').disabled = true;
+  sendStatus  = {};
+  photoStatus = '';
+  renderSendStep();
+
+  const sessionLabel = session === 'morning' ? 'Morning' : 'Afternoon';
+
+  // ── 1. Per-dog: save report to Drive + create Gmail draft ────────────────
+  for (const dog of DOGS) {
+    sendStatus[dog.id] = {drive:'', gmail:''};
+
+    // Drive — save JSON report
+    if (DRIVE_ENABLED) {
+      sendStatus[dog.id].drive = 'working';
+      updateDogStatus(dog.id);
+      try {
+        const report = {
+          generatedAt: new Date().toISOString(),
+          session, date: sessionDate,
+          dog:   {name:dog.name, breed:dog.breed, age:dog.age},
+          owner: {name:dog.ownerName, email:dog.ownerEmail},
+          summary:    summaries[dog.id]   || {},
+          emailDraft: emailDrafts[dog.id] || {},
+          taggedPhotos: photos.filter(p => p.taggedDogs.includes(dog.id)).map(p => p.name),
+        };
+        await saveToDrive({
+          requestType:  'saveReport',
+          humanName:    dog.ownerName,
+          sessionDate,
+          sessionLabel,
+          fileName:     dog.name + '_report.json',
+          content:      JSON.stringify(report, null, 2),
+        });
+        sendStatus[dog.id].drive = 'done';
+      } catch(e) {
+        console.error('Drive save failed for', dog.name, e);
+        sendStatus[dog.id].drive = 'error';
+      }
+      updateDogStatus(dog.id);
+    } else {
+      sendStatus[dog.id].drive = 'skip';
+    }
+
+    // Gmail — create draft via Apps Script
+    const draft = emailDrafts[dog.id];
+    if (draft) {
+      sendStatus[dog.id].gmail = 'working';
+      updateDogStatus(dog.id);
+      try {
+        await saveToDrive({
+          requestType: 'createGmailDraft',
+          to:      dog.ownerEmail,
+          subject: draft.subject,
+          body:    draft.body,
+        });
+        sendStatus[dog.id].gmail = 'done';
+      } catch(e) {
+        console.error('Gmail draft failed for', dog.name, e);
+        sendStatus[dog.id].gmail = 'error';
+      }
+      updateDogStatus(dog.id);
+    }
+  }
+
+  // ── 2. Photos — save to Drive ────────────────────────────────────────────
+  if (DRIVE_ENABLED && photos.length > 0) {
+    photoStatus = 'working';
+    updatePhotoStatus();
+    let photoOk = true;
+    for (const photo of photos) {
+      try {
+        const base64  = photo.dataUrl.split(',')[1];
+        const mimeType = photo.dataUrl.split(';')[0].split(':')[1];
+        if (photo.taggedDogs.length === 0) {
+          // Untagged — save to _Sessions/_Untagged
+          await saveToDrive({
+            requestType: 'saveUntagged',
+            sessionDate, sessionLabel,
+            fileName: photo.name,
+            content:  base64,
+            mimeType,
+          });
+        } else {
+          // Tagged — unique owners for this photo
+          const humans = [...new Set(
+            photo.taggedDogs
+              .map(id => DOGS.find(d => d.id === id))
+              .filter(Boolean)
+              .map(d => d.ownerName)
+          )];
+          await saveToDrive({
+            requestType: 'savePhoto',
+            humans, sessionDate, sessionLabel,
+            fileName: photo.name,
+            content:  base64,
+            mimeType,
+          });
+        }
+      } catch(e) {
+        console.error('Photo upload failed:', photo.name, e);
+        photoOk = false;
+      }
+    }
+    photoStatus = photoOk ? 'done' : 'error';
+    updatePhotoStatus();
+  }
+
+  // ── 3. Check if all done ─────────────────────────────────────────────────
+  const allGmailDone  = DOGS.every(d => sendStatus[d.id] && (sendStatus[d.id].gmail === 'done' || !emailDrafts[d.id]));
+  const allDriveDone  = !DRIVE_ENABLED || DOGS.every(d => sendStatus[d.id] && sendStatus[d.id].drive !== 'error');
+  if (allGmailDone && allDriveDone) {
+    document.getElementById('send-btn').style.display   = 'none';
+    document.getElementById('send-complete').style.display = 'block';
+    document.getElementById('send-title').textContent   = '🎉 All Done!';
+    document.getElementById('send-subtitle').textContent = 'Reports saved to Drive. Gmail drafts are waiting — review and send when ready.';
+  } else {
+    document.getElementById('send-btn').disabled  = false;
+    document.getElementById('send-btn').textContent = '🔄 Retry Failed Items';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GOOGLE DRIVE
+// ═══════════════════════════════════════════════════════════════════════════
+async function saveToDrive(body) {
+  // no-cors required for Apps Script — response not readable, assume success
+  await fetch(DRIVE_SCRIPT_URL, {
+    method:  'POST',
+    mode:    'no-cors',
+    headers: {'Content-Type': 'application/json'},
+    body:    JSON.stringify(body),
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ANTHROPIC API
+// ═══════════════════════════════════════════════════════════════════════════
+async function callClaude(messages, system) {
+  const body = {
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 1000,
+    messages,
+    ...(system && {system}),
+  };
+  const res = await fetch('/.netlify/functions/claude', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`API ${res.status}: ${err}`);
+  }
+  return res.json();
+}
+function getText(d) { return d.content.filter(b=>b.type==='text').map(b=>b.text).join(''); }
+function safeJSON(t) { return JSON.parse(t.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim()); }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════════════════════════
+function show(id) { document.getElementById(id).style.display = 'block'; }
+function hide(id) { document.getElementById(id).style.display = 'none';  }
+function uid()    { return Math.random().toString(36).slice(2); }
+function delay(ms){ return new Promise(r => setTimeout(r, ms)); }
+function esc(s)   { return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+function readFile(file) {
+  return new Promise(r => { const rd=new FileReader(); rd.onload=e=>r(e.target.result); rd.readAsDataURL(file); });
+}
+</script>
+</body>
+</html>
