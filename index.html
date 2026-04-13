@@ -718,6 +718,7 @@ async function generateEmails(force) {
         _error:  true,
       };
     }
+    await delay(500); // brief pause between dogs to reduce rate-limit pressure
   }
   hide('emails-loading');
   show('emails-list');
@@ -1097,7 +1098,11 @@ async function saveToDrive(body) {
 // ═══════════════════════════════════════════════════════════════════════════
 // ANTHROPIC API
 // ═══════════════════════════════════════════════════════════════════════════
-async function callClaude(messages, system) {
+
+// Retries on 529 (overloaded) with exponential backoff: 1s → 2s → 4s → 8s
+// All other errors throw immediately.
+async function callClaude(messages, system, _attempt = 0) {
+  const MAX_RETRIES = 4;
   const body = {
     model: 'claude-sonnet-4-20250514',
     max_tokens: 1000,
@@ -1109,6 +1114,14 @@ async function callClaude(messages, system) {
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify(body),
   });
+
+  if (res.status === 529 && _attempt < MAX_RETRIES) {
+    const waitMs = Math.pow(2, _attempt) * 1000;  // 1s, 2s, 4s, 8s
+    console.log(`Claude overloaded — retrying in ${waitMs}ms (attempt ${_attempt + 1}/${MAX_RETRIES})`);
+    await delay(waitMs);
+    return callClaude(messages, system, _attempt + 1);
+  }
+
   if (!res.ok) {
     const err = await res.text();
     throw new Error(`API ${res.status}: ${err}`);
