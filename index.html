@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>What's Up Dog? — Daily Reporter</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -90,6 +91,7 @@ input[type=date]:focus,textarea:focus,input:focus{outline:none;border-color:var(
     <span id="session-badge" style="font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px"></span>
     <span id="date-badge" style="font-size:12px;color:var(--ink-mid);font-weight:500"></span>
   </div>
+  <a href="admin.html" style="margin-left:auto;font-size:12px;font-weight:600;color:var(--ink-light);text-decoration:none;padding:5px 12px;border:1.5px solid var(--border);border-radius:7px" id="admin-link">Admin ↗</a>
 </div>
 
 <!-- PROGRESS -->
@@ -124,7 +126,7 @@ input[type=date]:focus,textarea:focus,input:focus{outline:none;border-color:var(
       <div style="font-size:11px;font-weight:700;color:var(--ink-mid);margin-bottom:12px;text-transform:uppercase;letter-spacing:.05em">Today's Dogs</div>
       <div id="dog-roster" style="display:flex;gap:9px;flex-wrap:wrap"></div>
     </div>
-    <button class="btn btn-primary" onclick="startSession()" style="font-size:15px;padding:12px 28px">Start Session →</button>
+    <button class="btn btn-primary" id="start-btn" onclick="startSession()" style="font-size:15px;padding:12px 28px">Start Session →</button>
   </div>
 
   <!-- STEP 1: AUDIO -->
@@ -253,23 +255,31 @@ input[type=date]:focus,textarea:focus,input:focus{outline:none;border-color:var(
 const DRIVE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzv4P8EzrhmZRFLK5BiJrFppIwJRRDfVcEWXUpnqbxVxxxGJx-3KDKEzNJzZhEPnHusOQ/exec';
 const DRIVE_ENABLED    = DRIVE_SCRIPT_URL !== 'YOUR_APPS_SCRIPT_DEPLOYMENT_URL';
 
+const SUPABASE_URL = 'https://pwltfmhzxzxvlgsrkslb.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_3WX7ZNSlWZqH1PwsxppTxA_QUreNyVp';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
 // ═══════════════════════════════════════════════════════════════════════════
 // DATA
 // ═══════════════════════════════════════════════════════════════════════════
-const DOGS = [
-  {id:'baxter',  name:'Baxter',  breed:'Golden Retriever',age:3,ownerName:'Sarah Chen',     ownerEmail:'sarah.chen@example.com',  feeding:'Half cup dry kibble at noon',   medical:null,                                     notes:'Loves fetch, can get mouthy when overstimulated'},
-  {id:'luna',    name:'Luna',    breed:'Border Collie',   age:2,ownerName:'Marcus Webb',    ownerEmail:'m.webb@example.com',       feeding:'No feeding at daycare',          medical:null,                                     notes:'High energy, herding instinct, needs mental stimulation'},
-  {id:'pretzel', name:'Pretzel', breed:'Dachshund',       age:5,ownerName:'Diane Kowalski', ownerEmail:'diane.k@example.com',      feeding:'Small treat OK',                 medical:'Spinal condition — no jumping, no rough play',notes:'Very chill, loves sunny spots'},
-  {id:'mochi',   name:'Mochi',   breed:'Shiba Inu',       age:1,ownerName:'James Park',     ownerEmail:'jpark@example.com',        feeding:'Half cup at noon if offered',    medical:null,                                     notes:'Still socializing, cautious with unfamiliar dogs'},
-  {id:'gus',     name:'Gus',     breed:'Labrador',        age:4,ownerName:'Priya Nair',     ownerEmail:'priya.nair@example.com',   feeding:'No feeding — owner strict',      medical:'Monitor water intake',                   notes:'Toy hoarder, food motivated, loves mud'},
+// ═══════════════════════════════════════════════════════════════════════════
+// DATA — populated from Supabase on load
+// ═══════════════════════════════════════════════════════════════════════════
+let ALL_DOGS = [];   // full active roster from Supabase
+let DOGS     = [];   // dogs selected for this session (set in startSession)
+let META     = {};   // keyed by dog.id, assigned from palette on load
+
+const PALETTE = [
+  {emoji:'🐕', color:'#C4751A', bg:'#FFF3E0'},
+  {emoji:'🐩', color:'#5B6FBF', bg:'#EEF0FF'},
+  {emoji:'🌭', color:'#C04A20', bg:'#FFF0EC'},
+  {emoji:'🦊', color:'#B03C60', bg:'#FFE8F0'},
+  {emoji:'🐶', color:'#2A7C58', bg:'#E4F5EE'},
+  {emoji:'🐾', color:'#7B5EA7', bg:'#F0EBF8'},
+  {emoji:'🦮', color:'#1A7A8A', bg:'#E4F5F8'},
+  {emoji:'🐕‍🦺',color:'#8A7000', bg:'#FBF8E0'},
 ];
-const META = {
-  baxter: {emoji:'🐕',color:'#C4751A',bg:'#FFF3E0'},
-  luna:   {emoji:'🐩',color:'#5B6FBF',bg:'#EEF0FF'},
-  pretzel:{emoji:'🌭',color:'#C04A20',bg:'#FFF0EC'},
-  mochi:  {emoji:'🦊',color:'#B03C60',bg:'#FFE8F0'},
-  gus:    {emoji:'🐶',color:'#2A7C58',bg:'#E4F5EE'},
-};
 const MOCK = {
   morning: `Good morning, this is the What's Up Dog? morning check-in. All five dogs are in and it's a great start. Baxter came in absolutely buzzing with energy — he was zooming around the yard within two minutes and made a beeline straight for Gus. Those two are best friends at this point. Luna came in a little quietly this morning, she's been hanging near the fence doing her observation thing — she always warms up after about thirty minutes. Pretzel is already in his favourite sunny spot on the mat near the window, keeping him away from the climbing structure as usual for his back. Mochi was a little cautious coming in but she's already relaxing and showed some interest in playing with Luna. Gus drank a great amount of water right when he arrived which I was really happy about. All five dogs are settled, shaping up to be a fantastic day.`,
   afternoon:`Afternoon wrap-up — what a day. Baxter was an absolute star at pool time, he jumped into the splash pad about fifteen times, completely soaked and loving every second. He's napping now, totally spent in the best way. Luna had a huge turnaround from her quiet morning — after lunch she and Mochi started doing this chase game around the yard. Mochi really came out of her shell today and ate her full lunch portion which James will be really happy to hear. Pretzel had an epic three-hour nap, completely content, no back issues noted at all today. Gus got into some mud during the afternoon outdoor session — totally his own doing — but we gave him a thorough rinse and he's clean and dry now. No incidents today, everyone played beautifully. Really great day.`,
@@ -287,27 +297,85 @@ let summaries   = {};
 let emailDrafts = {};
 let sendStatus  = {};   // {dogId: {drive:'',gmail:''}}
 let photoStatus = '';   // 'working'|'done'|'error'|''
+let selectedDogIds = new Set();
 
 // ═══════════════════════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════════════════════
-window.onload = () => {
+window.onload = async () => {
   const d = new Date();
   sessionDate = d.toISOString().split('T')[0];
   document.getElementById('session-date').value = sessionDate;
-  renderRoster();
   selectSession('morning');
+  await loadRoster();
 };
 
+async function loadRoster() {
+  const rosterEl = document.getElementById('dog-roster');
+  rosterEl.innerHTML = '<span style="font-size:12px;color:var(--ink-light)">Loading roster…</span>';
+  document.getElementById('start-btn').disabled = true;
+
+  const { data, error } = await sb
+    .from('dogs')
+    .select('*, humans(name, email)')
+    .eq('active', true)
+    .order('name');
+
+  if (error || !data?.length) {
+    rosterEl.innerHTML = '<span style="font-size:12px;color:var(--red)">⚠ Could not load roster. Check Supabase connection.</span>';
+    return;
+  }
+
+  // Map Supabase rows to the shape the rest of the app expects
+  ALL_DOGS = data.map(d => ({
+    id:         d.id,
+    name:       d.name,
+    breed:      d.breed       || '',
+    age:        d.age         || '',
+    ownerName:  d.humans?.name  || 'Unknown',
+    ownerEmail: d.humans?.email || '',
+    feeding:    d.feeding_notes    || '',
+    medical:    d.medical_notes    || '',
+    notes:      d.behavioral_notes || '',
+  }));
+
+  // Assign palette entries
+  META = {};
+  ALL_DOGS.forEach((d, i) => { META[d.id] = PALETTE[i % PALETTE.length]; });
+
+  // Default: all dogs selected
+  selectedDogIds = new Set(ALL_DOGS.map(d => d.id));
+  renderRoster();
+}
+
 function renderRoster() {
-  document.getElementById('dog-roster').innerHTML = DOGS.map(d =>
-    `<div style="display:flex;align-items:center;gap:8px;background:${META[d.id].bg};padding:8px 13px;border-radius:10px;border:1px solid ${META[d.id].color}33">
-      <span style="font-size:18px">${META[d.id].emoji}</span>
+  document.getElementById('dog-roster').innerHTML = ALL_DOGS.map(d => {
+    const on = selectedDogIds.has(d.id);
+    const m  = META[d.id];
+    return `<div
+      onclick="toggleDogSelect('${d.id}')"
+      style="display:flex;align-items:center;gap:8px;padding:8px 13px;border-radius:10px;cursor:pointer;
+             border:2px solid ${on ? m.color : 'var(--border)'};
+             background:${on ? m.bg : '#fff'};
+             transition:all .15s;user-select:none">
+      <span style="font-size:18px">${m.emoji}</span>
       <div>
-        <div style="font-weight:700;font-size:13px">${d.name}</div>
+        <div style="font-weight:700;font-size:13px;color:${on ? 'var(--ink)' : 'var(--ink-light)'}">${d.name}</div>
         <div style="font-size:11px;color:var(--ink-mid)">${d.breed}</div>
       </div>
-    </div>`).join('');
+      <span style="margin-left:auto;font-size:14px">${on ? '✓' : ''}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('start-btn').disabled = selectedDogIds.size === 0;
+}
+
+function toggleDogSelect(id) {
+  if (selectedDogIds.has(id)) {
+    selectedDogIds.delete(id);
+  } else {
+    selectedDogIds.add(id);
+  }
+  renderRoster();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -321,6 +389,7 @@ function showStep(n) {
   document.getElementById('nav-bar').style.display       = showNav ? 'flex' : 'none';
   document.getElementById('progress-bar').style.display  = showNav ? 'block' : 'none';
   document.getElementById('header-meta').style.display   = showNav ? 'flex' : 'none';
+  document.getElementById('admin-link').style.display    = showNav ? 'none' : 'block';
   const nextBtn = document.getElementById('next-btn');
   nextBtn.style.display   = n === 5 ? 'none' : 'inline-flex';
   nextBtn.textContent     = n === 4 ? 'Review & Send →' : 'Continue →';
@@ -365,6 +434,9 @@ function selectSession(s) {
 }
 
 function startSession() {
+  if (selectedDogIds.size === 0) return;
+  // Set DOGS to only the dogs present today
+  DOGS = ALL_DOGS.filter(d => selectedDogIds.has(d.id));
   sessionDate = document.getElementById('session-date').value;
   const badge = document.getElementById('session-badge');
   badge.textContent     = session === 'morning' ? '☀️ Morning' : '🌅 Afternoon';
@@ -496,7 +568,7 @@ async function generateSummaries(force) {
   hide('summaries-list');
   try {
     const data = await callClaude([{role:'user',content:
-      `Parse this ${session} daycare transcript. Dogs: ${DOGS.map(d=>`${d.id}="${d.name}"`).join(', ')}.\n\nTranscript:\n${transcript}\n\nReturn ONLY valid JSON with all five dog IDs:\n{"baxter":{"summary":"2-3 warm sentences about this dog's day","highlights":["specific positive moment"],"concerns":[]},"luna":{...},"pretzel":{...},"mochi":{...},"gus":{...}}`
+      `Parse this ${session} daycare transcript. Dogs present: ${DOGS.map(d=>`${d.id}="${d.name}"`).join(', ')}.\n\nTranscript:\n${transcript}\n\nReturn ONLY valid JSON using exactly these dog IDs as keys:\n{${DOGS.map(d=>`"${d.id}":{"summary":"2-3 warm sentences about this dog's day","highlights":["specific positive moment"],"concerns":[]}`).join(',')}}`
     }], 'You parse daycare staff audio notes accurately and warmly. Return only valid JSON, no commentary.');
     summaries = safeJSON(getText(data));
     hide('summaries-loading');
