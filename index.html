@@ -133,7 +133,15 @@ input[type=date]:focus,textarea:focus,input:focus{outline:none;border-color:var(
   <div class="step" id="step-1">
     <h2 class="serif" id="audio-title" style="font-size:30px;margin-bottom:6px">☀️ Audio Recording</h2>
     <p style="color:var(--ink-mid);margin-bottom:20px">Upload the staff recording — Whisper will transcribe it automatically.</p>
-    <div class="demo-banner">ℹ️ Demo mode — any audio file loads a realistic mock transcript automatically</div>
+    <div id="whisper-error" style="display:none;margin-bottom:16px" class="error-banner fade-in">
+      <span style="font-size:20px;flex-shrink:0">⚠️</span>
+      <div style="flex:1">
+        <div style="font-weight:700;margin-bottom:3px">Transcription failed</div>
+        <div id="whisper-error-msg" style="font-size:12px;opacity:.85"></div>
+        <div style="font-size:12px;margin-top:6px;color:var(--ink-mid)">You can paste the transcript manually below and continue.</div>
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="retryWhisper()">Retry</button>
+    </div>
     <div class="upload-zone" id="audio-zone" onclick="document.getElementById('audio-input').click()"
          ondrop="handleAudioDrop(event)" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')">
       <input type="file" id="audio-input" accept="audio/*" style="display:none" onchange="handleAudioFile(this.files[0])">
@@ -157,7 +165,7 @@ input[type=date]:focus,textarea:focus,input:focus{outline:none;border-color:var(
     </div>
     <div id="transcript-area" style="display:none;margin-top:20px" class="fade-in">
       <div style="font-size:11px;font-weight:700;color:var(--ink-mid);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Transcript — edit if needed</div>
-      <textarea class="transcript-box" id="transcript-text" oninput="transcript=this.value"></textarea>
+      <textarea class="transcript-box" id="transcript-text" oninput="transcript=this.value;if(currentStep===1)document.getElementById('next-btn').disabled=!this.value.trim()"></textarea>
     </div>
   </div>
 
@@ -452,6 +460,9 @@ function startSession() {
 // ═══════════════════════════════════════════════════════════════════════════
 // STEP 1 — AUDIO
 // ═══════════════════════════════════════════════════════════════════════════
+const MAX_AUDIO_BYTES = 4 * 1024 * 1024; // 4 MB — safe margin under Netlify's 6 MB body limit
+let currentAudioFile  = null;
+
 function handleAudioDrop(e) {
   e.preventDefault();
   document.getElementById('audio-zone').classList.remove('drag-over');
@@ -459,21 +470,80 @@ function handleAudioDrop(e) {
 }
 
 async function handleAudioFile(file) {
-  document.getElementById('audio-zone').style.display = 'none';
-  document.getElementById('audio-status').style.display = 'block';
-  document.getElementById('audio-filename').textContent = file.name;
-  document.getElementById('audio-size').textContent = (file.size / 1024).toFixed(0) + ' KB';
+  // Size gate
+  if (file.size > MAX_AUDIO_BYTES) {
+    hide('audio-status');
+    show('whisper-error');
+    document.getElementById('whisper-error-msg').textContent =
+      `File is ${(file.size / 1024 / 1024).toFixed(1)} MB — maximum is 4 MB. Try a shorter recording or export as MP3.`;
+    document.getElementById('transcript-area').style.display = 'block';
+    document.getElementById('transcript-text').value = '';
+    return;
+  }
 
-  await delay(2200);
+  currentAudioFile = file;
 
-  document.getElementById('audio-spinner').style.display = 'none';
-  document.getElementById('transcribing-banner').style.display = 'none';
-  document.getElementById('audio-done').style.display = 'inline';
+  hide('whisper-error');
+  show('audio-status');
+  document.getElementById('audio-zone').style.display       = 'none';
+  document.getElementById('audio-filename').textContent     = file.name;
+  document.getElementById('audio-size').textContent         = (file.size / 1024).toFixed(0) + ' KB';
+  document.getElementById('audio-spinner').style.display    = 'inline-block';
+  document.getElementById('audio-done').style.display       = 'none';
+  document.getElementById('transcribing-banner').style.display = 'block';
+  document.getElementById('transcript-area').style.display  = 'none';
+  document.getElementById('next-btn').disabled = true;
 
-  transcript = MOCK[session];
-  document.getElementById('transcript-area').style.display = 'block';
-  document.getElementById('transcript-text').value = transcript;
-  document.getElementById('next-btn').disabled = false;
+  await transcribeAudio(file);
+}
+
+async function transcribeAudio(file) {
+  try {
+    const dataUrl    = await readFile(file);
+    const audioBase64 = dataUrl.split(',')[1];
+    const mimeType   = dataUrl.split(';')[0].split(':')[1];
+
+    const res = await fetch('/.netlify/functions/whisper', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ audioBase64, mimeType, fileName: file.name }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || data.error) {
+      throw new Error(data.error?.message || data.error || `Whisper error ${res.status}`);
+    }
+
+    // ── Success ────────────────────────────────────────────────────────────
+    document.getElementById('audio-spinner').style.display       = 'none';
+    document.getElementById('transcribing-banner').style.display = 'none';
+    document.getElementById('audio-done').style.display          = 'inline';
+
+    transcript = data.text || '';
+    document.getElementById('transcript-area').style.display = 'block';
+    document.getElementById('transcript-text').value         = transcript;
+    document.getElementById('next-btn').disabled             = !transcript.trim();
+
+  } catch(e) {
+    // ── Failure — show error, offer manual entry ───────────────────────────
+    document.getElementById('audio-spinner').style.display       = 'none';
+    document.getElementById('transcribing-banner').style.display = 'none';
+    show('whisper-error');
+    document.getElementById('whisper-error-msg').textContent = e.message || 'Unexpected error — check the Netlify function logs.';
+    document.getElementById('transcript-area').style.display = 'block';
+    document.getElementById('transcript-text').value         = '';
+    document.getElementById('next-btn').disabled             = true;
+  }
+}
+
+async function retryWhisper() {
+  if (!currentAudioFile) return;
+  hide('whisper-error');
+  document.getElementById('audio-spinner').style.display       = 'inline-block';
+  document.getElementById('transcribing-banner').style.display = 'block';
+  document.getElementById('transcript-area').style.display     = 'none';
+  await transcribeAudio(currentAudioFile);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
