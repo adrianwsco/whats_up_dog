@@ -235,10 +235,16 @@ input[type=date]:focus,textarea:focus,input:focus{outline:none;border-color:var(
     <div id="drive-notice" style="display:none;margin-bottom:18px" class="notice-banner">
       ⚠️ Google Drive not configured — reports won't be saved. Add your Drive script URL to enable.
     </div>
-    <div class="card" style="padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;gap:12px">
+    <div class="card" style="padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;gap:14px">
       <span style="font-size:13px;font-weight:600;color:var(--ink-mid)">Email mode:</span>
-      <button id="mode-draft-btn" class="btn btn-sm btn-primary" onclick="setSendMode('draft')">💾 Save as Draft</button>
-      <button id="mode-send-btn"  class="btn btn-sm btn-ghost"   onclick="setSendMode('send')">📨 Send Now</button>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span id="mode-label-draft" style="font-size:13px;font-weight:700;color:var(--accent)">Save as Draft</span>
+        <div id="mode-toggle" onclick="toggleSendMode()"
+             style="width:44px;height:24px;border-radius:12px;background:var(--border);cursor:pointer;position:relative;transition:background .2s;flex-shrink:0">
+          <div id="mode-knob" style="width:20px;height:20px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)"></div>
+        </div>
+        <span id="mode-label-send" style="font-size:13px;font-weight:600;color:var(--ink-light)">Send Now</span>
+      </div>
     </div>
     <div id="send-now-warning" style="display:none;margin-bottom:14px" class="notice-banner">
       ⚠️ Send Now — emails go directly to parents. Review each one carefully before clicking send.
@@ -777,11 +783,23 @@ function updateDraft(dogId, field, val) {
 // ═══════════════════════════════════════════════════════════════════════════
 // STEP 5 — SEND
 // ═══════════════════════════════════════════════════════════════════════════
+function toggleSendMode() {
+  setSendMode(sendMode === 'draft' ? 'send' : 'draft');
+}
+
 function setSendMode(mode) {
   sendMode = mode;
-  document.getElementById('mode-draft-btn').className = `btn btn-sm ${mode === 'draft' ? 'btn-primary' : 'btn-ghost'}`;
-  document.getElementById('mode-send-btn').className  = `btn btn-sm ${mode === 'send'  ? 'btn-primary' : 'btn-ghost'}`;
-  document.getElementById('send-now-warning').style.display = mode === 'send' ? 'flex' : 'none';
+  const on = mode === 'send';
+  document.getElementById('mode-toggle').style.background   = on ? 'var(--accent)' : 'var(--border)';
+  document.getElementById('mode-knob').style.left           = on ? '22px' : '2px';
+  document.getElementById('mode-label-draft').style.color   = on ? 'var(--ink-light)' : 'var(--accent)';
+  document.getElementById('mode-label-draft').style.fontWeight = on ? '600' : '700';
+  document.getElementById('mode-label-send').style.color    = on ? 'var(--accent)' : 'var(--ink-light)';
+  document.getElementById('mode-label-send').style.fontWeight  = on ? '700' : '600';
+  document.getElementById('send-now-warning').style.display = on ? 'flex' : 'none';
+  document.getElementById('send-btn').textContent           = on
+    ? '📨 Send Now'
+    : '📬 Save to Drive + Create Gmail Drafts';
 }
 
 function buildHtmlEmail(dog, draft, photoFolderUrl) {
@@ -896,8 +914,8 @@ function updatePhotoStatus() {
 async function sendAll() {
   document.getElementById('send-btn').disabled = true;
   // Lock mode toggle — can't switch after send starts
-  document.getElementById('mode-draft-btn').disabled = true;
-  document.getElementById('mode-send-btn').disabled  = true;
+  document.getElementById('mode-toggle').style.pointerEvents = 'none';
+  document.getElementById('mode-toggle').style.opacity       = '0.5';
   sendStatus    = {};
   photoStatus   = '';
   dogFolderUrls = {};
@@ -1050,7 +1068,9 @@ function startNewSession() {
   document.getElementById('send-complete').style.display = 'none';
   document.getElementById('send-btn').style.display      = 'inline-flex';
   document.getElementById('send-btn').disabled           = false;
-  document.getElementById('send-btn').textContent        = '📬 Save to Drive + Create Gmail Drafts';
+  document.getElementById('mode-toggle').style.pointerEvents = 'auto';
+  document.getElementById('mode-toggle').style.opacity       = '1';
+  setSendMode('draft');
 
   // Reset date to today
   const d = new Date();
