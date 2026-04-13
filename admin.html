@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>What's Up Dog? — Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#FDF8F3;--surface:#FFFFFF;--accent:#C4611A;--accent-soft:#FFF3E8;
+  --ink:#1C0F04;--ink-mid:#6B4C35;--ink-light:#AE8E74;--border:#EAD9C8;
+  --green:#1E7A4A;--green-soft:#D6F0E2;--red:#A83030;--red-soft:#FFE8E8;
+}
+body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--ink);font-size:15px;min-height:100vh}
+.serif{font-family:'Playfair Display',serif}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px}
+.btn{font-family:'DM Sans',sans-serif;font-weight:600;font-size:14px;border-radius:9px;padding:10px 22px;cursor:pointer;border:none;transition:all .15s;display:inline-flex;align-items:center;gap:8px;line-height:1}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover:not(:disabled){background:#A8510F}
+.btn-primary:disabled{background:#D4AE94;cursor:not-allowed}
+.btn-ghost{background:transparent;color:var(--ink-mid);border:1.5px solid var(--border)}
+.btn-ghost:hover{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.btn-sm{font-size:12px;padding:5px 12px;border-radius:7px}
+.spin{display:inline-block;width:22px;height:22px;border:2.5px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .75s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.fade-in{animation:fadeIn .25s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+input[type=text],input[type=email],input[type=tel],input[type=number],select,textarea{
+  font-family:'DM Sans',sans-serif;width:100%;border:1.5px solid var(--border);
+  border-radius:8px;padding:9px 13px;font-size:14px;outline:none;color:var(--ink);background:#fff;transition:border-color .15s
+}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+textarea{min-height:72px;resize:vertical;line-height:1.6}
+label{font-size:11px;font-weight:700;color:var(--ink-mid);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}
+.form-group{margin-bottom:14px}
+.pill{font-size:11px;font-weight:700;padding:4px 11px;border-radius:18px;white-space:nowrap}
+.pill-active{background:var(--green-soft);color:var(--green)}
+.pill-archived{background:#F0E4D8;color:var(--ink-light)}
+#header{background:#fff;border-bottom:1px solid var(--border);padding:13px 28px;display:flex;align-items:center;gap:12px}
+#main{max-width:860px;margin:0 auto;padding:36px 24px 80px}
+.tabs{display:flex;border-bottom:2px solid var(--border);margin-bottom:28px}
+.tab{font-size:14px;font-weight:600;padding:10px 22px;cursor:pointer;border:none;background:none;color:var(--ink-light);border-bottom:2.5px solid transparent;margin-bottom:-2px;transition:all .15s}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+.list-row{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--border)}
+.list-row:last-child{border-bottom:none}
+.list-info{flex:1;min-width:0}
+.list-name{font-weight:700;font-size:14px;margin-bottom:2px}
+.list-sub{font-size:12px;color:var(--ink-mid)}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(28,15,4,.45);z-index:200;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border-radius:16px;padding:28px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
+.modal-close{background:none;border:none;font-size:22px;cursor:pointer;color:var(--ink-light);padding:2px 6px;line-height:1}
+.modal-close:hover{color:var(--ink)}
+.modal-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
+.error-msg{background:var(--red-soft);border:1px solid #F0BEBE;border-radius:8px;padding:10px 14px;font-size:13px;color:var(--red);margin-bottom:16px;display:none}
+.empty-state{text-align:center;padding:48px 0;color:var(--ink-light);font-size:13px}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <span style="font-size:22px">🐾</span>
+  <div>
+    <div class="serif" style="font-size:19px;line-height:1">What's Up Dog?</div>
+    <div style="font-size:10px;color:var(--ink-light);font-weight:700;letter-spacing:.05em;text-transform:uppercase">Admin</div>
+  </div>
+  <a href="index.html" class="btn btn-ghost" style="margin-left:auto;font-size:13px;text-decoration:none">← Daily Reporter</a>
+</div>
+
+<div id="main">
+
+  <div id="loading" style="text-align:center;padding:80px 0">
+    <div class="spin" style="margin:0 auto 16px"></div>
+    <div style="color:var(--ink-mid);font-size:13px">Loading roster…</div>
+  </div>
+
+  <div id="content" style="display:none" class="fade-in">
+    <h1 class="serif" style="font-size:34px;margin-bottom:24px">Roster</h1>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('dogs')">🐾 Dogs</button>
+      <button class="tab" onclick="switchTab('humans')">👤 Parents</button>
+    </div>
+
+    <!-- DOGS TAB -->
+    <div class="tab-panel active" id="tab-dogs">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+        <button class="btn btn-primary" onclick="openModal('dog')">+ Add Dog</button>
+      </div>
+      <div class="card" id="dogs-list"></div>
+    </div>
+
+    <!-- HUMANS TAB -->
+    <div class="tab-panel" id="tab-humans">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+        <button class="btn btn-primary" onclick="openModal('human')">+ Add Parent</button>
+      </div>
+      <div class="card" id="humans-list"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="handleOverlayClick(event)">
+  <div class="modal fade-in">
+    <div class="modal-header">
+      <div class="serif" id="modal-title" style="font-size:22px">Add Dog</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="error-msg" id="modal-error"></div>
+    <div id="modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="modal-save" onclick="saveModal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════════════════════════
+const SUPABASE_URL = 'https://pwltfmhzxzxvlgsrkslb.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_3WX7ZNSlWZqH1PwsxppTxA_QUreNyVp';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════════════
+let dogs      = [];
+let humans    = [];
+let modalMode = '';   // 'dog' | 'human'
+let editingId = null;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════════════
+window.onload = async () => {
+  await loadAll();
+  document.getElementById('loading').style.display  = 'none';
+  document.getElementById('content').style.display  = 'block';
+};
+
+async function loadAll() {
+  const [dogsRes, humansRes] = await Promise.all([
+    sb.from('dogs').select('*, humans(name, email)').order('name'),
+    sb.from('humans').select('*').order('name'),
+  ]);
+  dogs   = dogsRes.data   || [];
+  humans = humansRes.data || [];
+  renderDogs();
+  renderHumans();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════════════════════════
+function renderDogs() {
+  const el = document.getElementById('dogs-list');
+  if (!dogs.length) {
+    el.innerHTML = '<div class="empty-state">No dogs yet — add one above.</div>';
+    return;
+  }
+  el.innerHTML = dogs.map(d => `
+    <div class="list-row">
+      <div class="list-info">
+        <div class="list-name">${esc(d.name)}</div>
+        <div class="list-sub">
+          ${esc(d.breed || '—')} · ${d.age ? d.age + 'y' : '—'}
+          · Owner: ${esc(d.humans?.name || 'Unassigned')}
+          ${d.medical_notes ? `· <span style="color:#A04000">⚠ ${esc(d.medical_notes)}</span>` : ''}
+        </div>
+      </div>
+      <span class="pill ${d.active ? 'pill-active' : 'pill-archived'}">${d.active ? 'Active' : 'Archived'}</span>
+      <button class="btn btn-ghost btn-sm" onclick="openModal('dog','${d.id}')">Edit</button>
+      <button class="btn btn-ghost btn-sm" onclick="toggleActive('dogs','${d.id}',${d.active})">${d.active ? 'Archive' : 'Restore'}</button>
+    </div>`).join('');
+}
+
+function renderHumans() {
+  const el = document.getElementById('humans-list');
+  if (!humans.length) {
+    el.innerHTML = '<div class="empty-state">No parents yet — add one above.</div>';
+    return;
+  }
+  el.innerHTML = humans.map(h => `
+    <div class="list-row">
+      <div class="list-info">
+        <div class="list-name">${esc(h.name)}</div>
+        <div class="list-sub">${esc(h.email || '—')}${h.phone ? ' · ' + esc(h.phone) : ''}</div>
+      </div>
+      <span class="pill ${h.active ? 'pill-active' : 'pill-archived'}">${h.active ? 'Active' : 'Archived'}</span>
+      <button class="btn btn-ghost btn-sm" onclick="openModal('human','${h.id}')">Edit</button>
+      <button class="btn btn-ghost btn-sm" onclick="toggleActive('humans','${h.id}',${h.active})">${h.active ? 'Archive' : 'Restore'}</button>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════════════════════════════════
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t =>
+    t.classList.toggle('active', t.textContent.toLowerCase().includes(tab === 'dogs' ? 'dog' : 'parent'))
+  );
+  ['dogs','humans'].forEach(t => {
+    document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MODAL
+// ═══════════════════════════════════════════════════════════════════════════
+function openModal(mode, id = null) {
+  modalMode = mode;
+  editingId = id;
+  document.getElementById('modal-error').style.display = 'none';
+
+  if (mode === 'dog') {
+    const dog = id ? dogs.find(d => d.id === id) : null;
+    document.getElementById('modal-title').textContent = dog ? 'Edit Dog' : 'Add Dog';
+    const humanOptions = humans
+      .filter(h => h.active || (dog && dog.human_id === h.id))
+      .map(h => `<option value="${h.id}" ${dog?.human_id === h.id ? 'selected' : ''}>${esc(h.name)}</option>`)
+      .join('');
+    document.getElementById('modal-body').innerHTML = `
+      <div class="form-group">
+        <label>Dog Name *</label>
+        <input type="text" id="f-name" value="${esc(dog?.name||'')}" placeholder="e.g. Baxter">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label>Breed</label>
+          <input type="text" id="f-breed" value="${esc(dog?.breed||'')}" placeholder="e.g. Golden Retriever">
+        </div>
+        <div class="form-group">
+          <label>Age (years)</label>
+          <input type="number" id="f-age" value="${dog?.age||''}" min="0" max="30" placeholder="e.g. 3">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Owner (Parent)</label>
+        <select id="f-human">
+          <option value="">— Select parent —</option>
+          ${humanOptions}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Feeding Notes</label>
+        <textarea id="f-feeding" placeholder="e.g. Half cup dry kibble at noon">${esc(dog?.feeding_notes||'')}</textarea>
+      </div>
+      <div class="form-group">
+        <label>Medical Notes</label>
+        <textarea id="f-medical" placeholder="e.g. Spinal condition — no rough play">${esc(dog?.medical_notes||'')}</textarea>
+      </div>
+      <div class="form-group">
+        <label>Behavioural Notes</label>
+        <textarea id="f-behavioral" placeholder="e.g. Loves fetch, gets mouthy when overstimulated">${esc(dog?.behavioral_notes||'')}</textarea>
+      </div>`;
+  } else {
+    const human = id ? humans.find(h => h.id === id) : null;
+    document.getElementById('modal-title').textContent = human ? 'Edit Parent' : 'Add Parent';
+    document.getElementById('modal-body').innerHTML = `
+      <div class="form-group">
+        <label>Full Name *</label>
+        <input type="text" id="f-name" value="${esc(human?.name||'')}" placeholder="e.g. Sarah Chen">
+      </div>
+      <div class="form-group">
+        <label>Email *</label>
+        <input type="email" id="f-email" value="${esc(human?.email||'')}" placeholder="e.g. sarah@example.com">
+      </div>
+      <div class="form-group">
+        <label>Phone</label>
+        <input type="tel" id="f-phone" value="${esc(human?.phone||'')}" placeholder="e.g. 604-555-0100">
+      </div>`;
+  }
+  document.getElementById('modal-overlay').classList.add('open');
+  // Focus first input
+  setTimeout(() => document.getElementById('f-name')?.focus(), 50);
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  editingId = null;
+}
+
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+}
+
+async function saveModal() {
+  const btn   = document.getElementById('modal-save');
+  const errEl = document.getElementById('modal-error');
+  errEl.style.display = 'none';
+  btn.disabled    = true;
+  btn.textContent = 'Saving…';
+
+  try {
+    if (modalMode === 'dog') {
+      const name = document.getElementById('f-name').value.trim();
+      if (!name) throw new Error('Dog name is required.');
+      const payload = {
+        name,
+        breed:            document.getElementById('f-breed').value.trim()      || null,
+        age:              parseInt(document.getElementById('f-age').value)      || null,
+        human_id:         document.getElementById('f-human').value              || null,
+        feeding_notes:    document.getElementById('f-feeding').value.trim()    || null,
+        medical_notes:    document.getElementById('f-medical').value.trim()    || null,
+        behavioral_notes: document.getElementById('f-behavioral').value.trim() || null,
+      };
+      if (editingId) {
+        const { error } = await sb.from('dogs').update(payload).eq('id', editingId);
+        if (error) throw new Error(error.message);
+      } else {
+        const { error } = await sb.from('dogs').insert(payload);
+        if (error) throw new Error(error.message);
+      }
+    } else {
+      const name  = document.getElementById('f-name').value.trim();
+      const email = document.getElementById('f-email').value.trim();
+      if (!name)  throw new Error('Name is required.');
+      if (!email) throw new Error('Email is required.');
+      const payload = {
+        name, email,
+        phone: document.getElementById('f-phone').value.trim() || null,
+      };
+      if (editingId) {
+        const { error } = await sb.from('humans').update(payload).eq('id', editingId);
+        if (error) throw new Error(error.message);
+      } else {
+        const { error } = await sb.from('humans').insert(payload);
+        if (error) throw new Error(error.message);
+      }
+    }
+    closeModal();
+    await loadAll();
+  } catch(e) {
+    errEl.textContent   = e.message;
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = 'Save';
+  }
+}
+
+async function toggleActive(table, id, current) {
+  await sb.from(table).update({ active: !current }).eq('id', id);
+  await loadAll();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════════════════════════
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+</script>
+</body>
+</html>
