@@ -235,6 +235,14 @@ input[type=date]:focus,textarea:focus,input:focus{outline:none;border-color:var(
     <div id="drive-notice" style="display:none;margin-bottom:18px" class="notice-banner">
       ⚠️ Google Drive not configured — reports won't be saved. Add your Drive script URL to enable.
     </div>
+    <div class="card" style="padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;gap:12px">
+      <span style="font-size:13px;font-weight:600;color:var(--ink-mid)">Email mode:</span>
+      <button id="mode-draft-btn" class="btn btn-sm btn-primary" onclick="setSendMode('draft')">💾 Save as Draft</button>
+      <button id="mode-send-btn"  class="btn btn-sm btn-ghost"   onclick="setSendMode('send')">📨 Send Now</button>
+    </div>
+    <div id="send-now-warning" style="display:none;margin-bottom:14px" class="notice-banner">
+      ⚠️ Send Now — emails go directly to parents. Review each one carefully before clicking send.
+    </div>
     <div id="send-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px"></div>
     <div id="photos-send-row" style="display:none" class="card" style="margin-bottom:20px"></div>
     <div style="margin-bottom:28px"></div>
@@ -258,10 +266,10 @@ input[type=date]:focus,textarea:focus,input:focus{outline:none;border-color:var(
 
 <script>
 // ═══════════════════════════════════════════════════════════════════════════
-// CONFIG — hosted version (API key lives in Netlify environment variables)
+// CONFIG — all secrets live in Netlify environment variables
 // ═══════════════════════════════════════════════════════════════════════════
-const DRIVE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzv4P8EzrhmZRFLK5BiJrFppIwJRRDfVcEWXUpnqbxVxxxGJx-3KDKEzNJzZhEPnHusOQ/exec';
-const DRIVE_ENABLED    = DRIVE_SCRIPT_URL !== 'YOUR_APPS_SCRIPT_DEPLOYMENT_URL';
+// DRIVE_SCRIPT_URL is no longer in the HTML — it's set as a Netlify env var
+// and accessed via /.netlify/functions/drive (server-side proxy)
 
 const SUPABASE_URL = 'https://pwltfmhzxzxvlgsrkslb.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_3WX7ZNSlWZqH1PwsxppTxA_QUreNyVp';
@@ -296,16 +304,18 @@ const MOCK = {
 // ═══════════════════════════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════════════════════════
-let currentStep = 0;
-let session     = 'morning';
-let sessionDate = '';
-let transcript  = '';
-let photos      = [];
-let summaries   = {};
-let emailDrafts = {};
-let sendStatus  = {};   // {dogId: {drive:'',gmail:''}}
-let photoStatus = '';   // 'working'|'done'|'error'|''
+let currentStep    = 0;
+let session        = 'morning';
+let sessionDate    = '';
+let transcript     = '';
+let photos         = [];
+let summaries      = {};
+let emailDrafts    = {};
+let sendStatus     = {};   // {dogId: {drive:'',gmail:''}}
+let photoStatus    = '';   // 'working'|'done'|'error'|''
 let selectedDogIds = new Set();
+let sendMode       = 'draft';      // 'draft' | 'send'
+let dogFolderUrls  = {};           // {ownerName: driveUrl} — populated when photos save
 
 // ═══════════════════════════════════════════════════════════════════════════
 // INIT
@@ -766,12 +776,41 @@ function updateDraft(dogId, field, val) {
 // ═══════════════════════════════════════════════════════════════════════════
 // STEP 5 — SEND
 // ═══════════════════════════════════════════════════════════════════════════
+function setSendMode(mode) {
+  sendMode = mode;
+  document.getElementById('mode-draft-btn').className = `btn btn-sm ${mode === 'draft' ? 'btn-primary' : 'btn-ghost'}`;
+  document.getElementById('mode-send-btn').className  = `btn btn-sm ${mode === 'send'  ? 'btn-primary' : 'btn-ghost'}`;
+  document.getElementById('send-now-warning').style.display = mode === 'send' ? 'flex' : 'none';
+}
+
+function buildHtmlEmail(dog, draft, photoFolderUrl) {
+  const bodyHtml = (draft.body || '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\n/g, '<br>');
+  const photoSection = photoFolderUrl
+    ? `<div style="margin-top:24px;padding:16px 20px;background:#FFF3E8;border-radius:10px;text-align:center">
+         <a href="${photoFolderUrl}" style="color:#C4611A;font-weight:700;font-size:14px;text-decoration:none">
+           📸 View ${dog.name}'s photos from today →
+         </a>
+       </div>`
+    : '';
+  return `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden">
+    <div style="background:#C4611A;padding:18px 24px">
+      <div style="color:#ffffff;font-size:18px;font-weight:700">🐾 What's Up Dog?</div>
+      <div style="color:#FFD4A8;font-size:11px;margin-top:3px">Daily Reporter</div>
+    </div>
+    <div style="padding:24px;line-height:1.75;color:#1C0F04;font-size:14px">
+      ${bodyHtml}
+      ${photoSection}
+    </div>
+    <div style="padding:14px 24px;border-top:1px solid #EAD9C8;font-size:11px;color:#AE8E74;text-align:center">
+      What's Up Dog? Daily Reporter
+    </div>
+  </div>`;
+}
+
 function renderSendStep() {
-  // Show Drive notice if not configured
-  document.getElementById('drive-notice').style.display = DRIVE_ENABLED ? 'none' : 'flex';
-  if (!DRIVE_ENABLED) {
-    document.getElementById('send-btn').textContent = '📬 Create Gmail Drafts';
-  }
+  document.getElementById('drive-notice').style.display = 'none';
 
   // Dog rows
   document.getElementById('send-list').innerHTML = DOGS.map(dog => {
@@ -812,11 +851,11 @@ function renderSendStep() {
 }
 
 function renderDogStatuses(st) {
-  const driveHtml = DRIVE_ENABLED ? `
+  const driveHtml = `
     <span class="status-pill ${pillClass(st.drive)}">
       ${st.drive==='working' ? '<span class="spin" style="width:11px;height:11px;border-width:2px"></span> ' : ''}
       ${pillLabel(st.drive, 'Drive')}
-    </span>` : '';
+    </span>`;
   const gmailHtml = `
     <span class="status-pill ${pillClass(st.gmail)}">
       ${st.gmail==='working' ? '<span class="spin" style="width:11px;height:11px;border-width:2px"></span> ' : ''}
@@ -826,7 +865,6 @@ function renderDogStatuses(st) {
 }
 
 function renderPhotoStatus() {
-  if (!DRIVE_ENABLED) return `<span class="status-pill pill-skip">Drive not configured</span>`;
   return `<span class="status-pill ${pillClass(photoStatus)}">${pillLabel(photoStatus, 'Photos')}</span>`;
 }
 
@@ -834,9 +872,12 @@ function pillClass(s) {
   return s==='working'?'pill-working':s==='done'?'pill-done':s==='error'?'pill-error':s==='skip'?'pill-skip':'pill-ready';
 }
 function pillLabel(s, label) {
-  if (!s)           return label + ': Ready';
+  if (!s)            return label + ': Ready';
   if (s==='working') return 'Saving…';
-  if (s==='done')    return '✓ ' + label;
+  if (s==='done') {
+    if (label === 'Gmail') return sendMode === 'send' ? '✓ Sent' : '✓ Draft saved';
+    return '✓ ' + label;
+  }
   if (s==='error')   return '✗ ' + label + ' failed';
   if (s==='skip')    return label + ' skipped';
   return label;
@@ -853,80 +894,23 @@ function updatePhotoStatus() {
 
 async function sendAll() {
   document.getElementById('send-btn').disabled = true;
-  sendStatus  = {};
-  photoStatus = '';
+  sendStatus    = {};
+  photoStatus   = '';
+  dogFolderUrls = {};
   renderSendStep();
 
   const sessionLabel = session === 'morning' ? 'Morning' : 'Afternoon';
 
-  // ── 1. Per-dog: save report to Drive + create Gmail draft ────────────────
-  for (const dog of DOGS) {
-    sendStatus[dog.id] = {drive:'', gmail:''};
-
-    // Drive — save JSON report
-    if (DRIVE_ENABLED) {
-      sendStatus[dog.id].drive = 'working';
-      updateDogStatus(dog.id);
-      try {
-        const report = {
-          generatedAt: new Date().toISOString(),
-          session, date: sessionDate,
-          dog:   {name:dog.name, breed:dog.breed, age:dog.age},
-          owner: {name:dog.ownerName, email:dog.ownerEmail},
-          summary:    summaries[dog.id]   || {},
-          emailDraft: emailDrafts[dog.id] || {},
-          taggedPhotos: photos.filter(p => p.taggedDogs.includes(dog.id)).map(p => p.name),
-        };
-        await saveToDrive({
-          requestType:  'saveReport',
-          humanName:    dog.ownerName,
-          sessionDate,
-          sessionLabel,
-          fileName:     dog.name + '_report.json',
-          content:      JSON.stringify(report, null, 2),
-        });
-        sendStatus[dog.id].drive = 'done';
-      } catch(e) {
-        console.error('Drive save failed for', dog.name, e);
-        sendStatus[dog.id].drive = 'error';
-      }
-      updateDogStatus(dog.id);
-    } else {
-      sendStatus[dog.id].drive = 'skip';
-    }
-
-    // Gmail — create draft via Apps Script
-    const draft = emailDrafts[dog.id];
-    if (draft) {
-      sendStatus[dog.id].gmail = 'working';
-      updateDogStatus(dog.id);
-      try {
-        await saveToDrive({
-          requestType: 'createGmailDraft',
-          to:      dog.ownerEmail,
-          subject: draft.subject,
-          body:    draft.body,
-        });
-        sendStatus[dog.id].gmail = 'done';
-      } catch(e) {
-        console.error('Gmail draft failed for', dog.name, e);
-        sendStatus[dog.id].gmail = 'error';
-      }
-      updateDogStatus(dog.id);
-    }
-  }
-
-  // ── 2. Photos — save to Drive ────────────────────────────────────────────
-  if (DRIVE_ENABLED && photos.length > 0) {
+  // ── 1. Photos first — collect folder URLs for email links ────────────────
+  if (photos.length > 0) {
     photoStatus = 'working';
     updatePhotoStatus();
     let photoOk = true;
     for (const photo of photos) {
       try {
-        const base64  = photo.dataUrl.split(',')[1];
+        const base64   = photo.dataUrl.split(',')[1];
         const mimeType = photo.dataUrl.split(';')[0].split(':')[1];
         if (photo.taggedDogs.length === 0) {
-          // Untagged — save to _Sessions/_Untagged
           await saveToDrive({
             requestType: 'saveUntagged',
             sessionDate, sessionLabel,
@@ -935,20 +919,23 @@ async function sendAll() {
             mimeType,
           });
         } else {
-          // Tagged — unique owners for this photo
           const humans = [...new Set(
             photo.taggedDogs
               .map(id => DOGS.find(d => d.id === id))
               .filter(Boolean)
               .map(d => d.ownerName)
           )];
-          await saveToDrive({
+          const result = await saveToDrive({
             requestType: 'savePhoto',
             humans, sessionDate, sessionLabel,
             fileName: photo.name,
             content:  base64,
             mimeType,
           });
+          // Collect folder URLs keyed by owner name
+          if (result?.data?.folderUrls) {
+            Object.assign(dogFolderUrls, result.data.folderUrls);
+          }
         }
       } catch(e) {
         console.error('Photo upload failed:', photo.name, e);
@@ -959,31 +946,89 @@ async function sendAll() {
     updatePhotoStatus();
   }
 
+  // ── 2. Per-dog: save report + send or draft email ────────────────────────
+  for (const dog of DOGS) {
+    sendStatus[dog.id] = {drive:'', gmail:''};
+
+    // Drive — save JSON report
+    sendStatus[dog.id].drive = 'working';
+    updateDogStatus(dog.id);
+    try {
+      const report = {
+        generatedAt: new Date().toISOString(),
+        session, date: sessionDate,
+        dog:   {name:dog.name, breed:dog.breed, age:dog.age},
+        owner: {name:dog.ownerName, email:dog.ownerEmail},
+        summary:     summaries[dog.id]   || {},
+        emailDraft:  emailDrafts[dog.id] || {},
+        taggedPhotos: photos.filter(p => p.taggedDogs.includes(dog.id)).map(p => p.name),
+      };
+      await saveToDrive({
+        requestType:  'saveReport',
+        humanName:    dog.ownerName,
+        sessionDate,
+        sessionLabel,
+        fileName:     dog.name + '_report.json',
+        content:      JSON.stringify(report, null, 2),
+      });
+      sendStatus[dog.id].drive = 'done';
+    } catch(e) {
+      console.error('Drive save failed for', dog.name, e);
+      sendStatus[dog.id].drive = 'error';
+    }
+    updateDogStatus(dog.id);
+
+    // Gmail — draft or send, with HTML body + photo link
+    const draft = emailDrafts[dog.id];
+    if (draft) {
+      sendStatus[dog.id].gmail = 'working';
+      updateDogStatus(dog.id);
+      try {
+        const folderUrl = dogFolderUrls[dog.ownerName] || null;
+        const htmlBody  = buildHtmlEmail(dog, draft, folderUrl);
+        await saveToDrive({
+          requestType: sendMode === 'send' ? 'sendEmail' : 'createGmailDraft',
+          to:        dog.ownerEmail,
+          subject:   draft.subject,
+          plainBody: draft.body,
+          htmlBody,
+        });
+        sendStatus[dog.id].gmail = 'done';
+      } catch(e) {
+        console.error('Email failed for', dog.name, e);
+        sendStatus[dog.id].gmail = 'error';
+      }
+      updateDogStatus(dog.id);
+    }
+  }
+
   // ── 3. Check if all done ─────────────────────────────────────────────────
-  const allGmailDone  = DOGS.every(d => sendStatus[d.id] && (sendStatus[d.id].gmail === 'done' || !emailDrafts[d.id]));
-  const allDriveDone  = !DRIVE_ENABLED || DOGS.every(d => sendStatus[d.id] && sendStatus[d.id].drive !== 'error');
+  const allGmailDone = DOGS.every(d => sendStatus[d.id] && (sendStatus[d.id].gmail === 'done' || !emailDrafts[d.id]));
+  const allDriveDone = DOGS.every(d => sendStatus[d.id] && sendStatus[d.id].drive !== 'error');
   if (allGmailDone && allDriveDone) {
-    document.getElementById('send-btn').style.display   = 'none';
+    document.getElementById('send-btn').style.display    = 'none';
     document.getElementById('send-complete').style.display = 'block';
-    document.getElementById('send-title').textContent   = '🎉 All Done!';
-    document.getElementById('send-subtitle').textContent = 'Reports saved to Drive. Gmail drafts are waiting — review and send when ready.';
+    document.getElementById('send-title').textContent    = '🎉 All Done!';
+    document.getElementById('send-subtitle').textContent = sendMode === 'send'
+      ? 'Emails sent to parents. Reports and photos saved to Drive.'
+      : 'Gmail drafts ready — review and send when you\'re ready. Reports saved to Drive.';
   } else {
-    document.getElementById('send-btn').disabled  = false;
+    document.getElementById('send-btn').disabled   = false;
     document.getElementById('send-btn').textContent = '🔄 Retry Failed Items';
   }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// GOOGLE DRIVE
+// GOOGLE DRIVE (via Netlify proxy — server-side, readable responses)
 // ═══════════════════════════════════════════════════════════════════════════
 async function saveToDrive(body) {
-  // no-cors required for Apps Script — response not readable, assume success
-  await fetch(DRIVE_SCRIPT_URL, {
+  const res = await fetch('/.netlify/functions/drive', {
     method:  'POST',
-    mode:    'no-cors',
-    headers: {'Content-Type': 'application/json'},
+    headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify(body),
   });
+  if (!res.ok) throw new Error(`Drive proxy error ${res.status}`);
+  return res.json();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
