@@ -313,22 +313,6 @@ function openModal(mode, id = null) {
         <label>Behavioural Notes</label>
         <textarea id="f-behavioral" placeholder="e.g. Loves fetch, gets mouthy when overstimulated">${esc(dog?.behavioral_notes||'')}</textarea>
       </div>`;
-  } else {
-    const human = id ? humans.find(h => h.id === id) : null;
-    document.getElementById('modal-title').textContent = human ? 'Edit Parent' : 'Add Parent';
-    document.getElementById('modal-body').innerHTML = `
-      <div class="form-group">
-        <label>Full Name *</label>
-        <input type="text" id="f-name" value="${esc(human?.name||'')}" placeholder="e.g. Sarah Chen">
-      </div>
-      <div class="form-group">
-        <label>Email *</label>
-        <input type="email" id="f-email" value="${esc(human?.email||'')}" placeholder="e.g. sarah@example.com">
-      </div>
-      <div class="form-group">
-        <label>Phone</label>
-        <input type="tel" id="f-phone" value="${esc(human?.phone||'')}" placeholder="e.g. 604-555-0100">
-      </div>`;
   } else if (mode === 'staff') {
     document.getElementById('modal-title').textContent = 'Invite Staff Member';
     document.getElementById('modal-body').innerHTML = `
@@ -349,6 +333,22 @@ function openModal(mode, id = null) {
           <option value="staff">Staff</option>
           <option value="admin">Admin</option>
         </select>
+      </div>`;
+  } else {
+    const human = id ? humans.find(h => h.id === id) : null;
+    document.getElementById('modal-title').textContent = human ? 'Edit Parent' : 'Add Parent';
+    document.getElementById('modal-body').innerHTML = `
+      <div class="form-group">
+        <label>Full Name *</label>
+        <input type="text" id="f-name" value="${esc(human?.name||'')}" placeholder="e.g. Sarah Chen">
+      </div>
+      <div class="form-group">
+        <label>Email *</label>
+        <input type="email" id="f-email" value="${esc(human?.email||'')}" placeholder="e.g. sarah@example.com">
+      </div>
+      <div class="form-group">
+        <label>Phone</label>
+        <input type="tel" id="f-phone" value="${esc(human?.phone||'')}" placeholder="e.g. 604-555-0100">
       </div>`;
   }
   document.getElementById('modal-overlay').classList.add('open');
