@@ -69,7 +69,11 @@ label{font-size:11px;font-weight:700;color:var(--ink-mid);display:block;margin-b
     <div class="serif" style="font-size:19px;line-height:1">What's Up Dog?</div>
     <div style="font-size:10px;color:var(--ink-light);font-weight:700;letter-spacing:.05em;text-transform:uppercase">Admin</div>
   </div>
-  <a href="index.html" class="btn btn-ghost" style="margin-left:auto;font-size:13px;text-decoration:none">← Daily Reporter</a>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+    <span id="user-name" style="font-size:12px;color:var(--ink-mid)"></span>
+    <a href="index.html" class="btn btn-ghost" style="font-size:13px;text-decoration:none">← Daily Reporter</a>
+    <button class="btn btn-ghost" style="font-size:13px" onclick="signOut()">Sign Out</button>
+  </div>
 </div>
 
 <div id="main">
@@ -85,6 +89,7 @@ label{font-size:11px;font-weight:700;color:var(--ink-mid);display:block;margin-b
     <div class="tabs">
       <button class="tab active" onclick="switchTab('dogs')">🐾 Dogs</button>
       <button class="tab" onclick="switchTab('humans')">👤 Parents</button>
+      <button class="tab" onclick="switchTab('staff')">👥 Staff</button>
     </div>
 
     <!-- DOGS TAB -->
@@ -101,6 +106,14 @@ label{font-size:11px;font-weight:700;color:var(--ink-mid);display:block;margin-b
         <button class="btn btn-primary" onclick="openModal('human')">+ Add Parent</button>
       </div>
       <div class="card" id="humans-list"></div>
+    </div>
+
+    <!-- STAFF TAB -->
+    <div class="tab-panel" id="tab-staff">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+        <button class="btn btn-primary" onclick="openModal('staff')">+ Invite Staff</button>
+      </div>
+      <div class="card" id="staff-list"></div>
     </div>
   </div>
 
@@ -136,27 +149,47 @@ const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 // ═══════════════════════════════════════════════════════════════════════════
 let dogs      = [];
 let humans    = [];
-let modalMode = '';   // 'dog' | 'human'
+let staff     = [];
+let modalMode = '';   // 'dog' | 'human' | 'staff'
 let editingId = null;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════════════════════
 window.onload = async () => {
+  // Auth guard — redirect to login if no session
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = 'login.html'; return; }
+
+  // Role guard — only admins can access this page
+  const { data: profile } = await sb.from('profiles').select('role,name').eq('id', session.user.id).single();
+  if (!profile || profile.role !== 'admin') { window.location.href = 'index.html'; return; }
+
+  // Show logged-in user name
+  document.getElementById('user-name').textContent = profile.name || session.user.email;
+
   await loadAll();
   document.getElementById('loading').style.display  = 'none';
   document.getElementById('content').style.display  = 'block';
 };
 
+async function signOut() {
+  await sb.auth.signOut();
+  window.location.href = 'login.html';
+}
+
 async function loadAll() {
-  const [dogsRes, humansRes] = await Promise.all([
+  const [dogsRes, humansRes, staffRes] = await Promise.all([
     sb.from('dogs').select('*, humans(name, email)').order('name'),
     sb.from('humans').select('*').order('name'),
+    sb.from('profiles').select('*').in('role', ['admin','staff']).order('name'),
   ]);
   dogs   = dogsRes.data   || [];
   humans = humansRes.data || [];
+  staff  = staffRes.data  || [];
   renderDogs();
   renderHumans();
+  renderStaff();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -202,14 +235,31 @@ function renderHumans() {
     </div>`).join('');
 }
 
+function renderStaff() {
+  const el = document.getElementById('staff-list');
+  if (!staff.length) {
+    el.innerHTML = '<div class="empty-state">No staff yet — invite someone above.</div>';
+    return;
+  }
+  el.innerHTML = staff.map(s => `
+    <div class="list-row">
+      <div class="list-info">
+        <div class="list-name">${esc(s.name || '—')}</div>
+        <div class="list-sub">${esc(s.role === 'admin' ? 'Admin' : 'Staff')}</div>
+      </div>
+      <span class="pill pill-active">Active</span>
+    </div>`).join('');
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // TABS
 // ═══════════════════════════════════════════════════════════════════════════
 function switchTab(tab) {
+  const labelMap = { dogs: 'dog', humans: 'parent', staff: 'staff' };
   document.querySelectorAll('.tab').forEach(t =>
-    t.classList.toggle('active', t.textContent.toLowerCase().includes(tab === 'dogs' ? 'dog' : 'parent'))
+    t.classList.toggle('active', t.textContent.toLowerCase().includes(labelMap[tab] || tab))
   );
-  ['dogs','humans'].forEach(t => {
+  ['dogs','humans','staff'].forEach(t => {
     document.getElementById('tab-' + t).classList.toggle('active', t === tab);
   });
 }
@@ -279,9 +329,29 @@ function openModal(mode, id = null) {
         <label>Phone</label>
         <input type="tel" id="f-phone" value="${esc(human?.phone||'')}" placeholder="e.g. 604-555-0100">
       </div>`;
+  } else if (mode === 'staff') {
+    document.getElementById('modal-title').textContent = 'Invite Staff Member';
+    document.getElementById('modal-body').innerHTML = `
+      <div style="font-size:13px;color:var(--ink-mid);margin-bottom:16px">
+        An invite email will be sent. They'll set their own password when they accept.
+      </div>
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" id="f-name" placeholder="e.g. Jane Smith">
+      </div>
+      <div class="form-group">
+        <label>Email *</label>
+        <input type="email" id="f-email" placeholder="e.g. jane@example.com">
+      </div>
+      <div class="form-group">
+        <label>Role</label>
+        <select id="f-role">
+          <option value="staff">Staff</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>`;
   }
   document.getElementById('modal-overlay').classList.add('open');
-  // Focus first input
   setTimeout(() => document.getElementById('f-name')?.focus(), 50);
 }
 
@@ -321,6 +391,18 @@ async function saveModal() {
         const { error } = await sb.from('dogs').insert(payload);
         if (error) throw new Error(error.message);
       }
+    } else if (modalMode === 'staff') {
+      const email = document.getElementById('f-email').value.trim();
+      const name  = document.getElementById('f-name').value.trim();
+      const role  = document.getElementById('f-role').value;
+      if (!email) throw new Error('Email is required.');
+      const res  = await fetch('/.netlify/functions/invite', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ email, name, role }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || 'Invite failed.');
     } else {
       const name  = document.getElementById('f-name').value.trim();
       const email = document.getElementById('f-email').value.trim();
