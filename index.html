@@ -91,7 +91,11 @@ input[type=date]:focus,textarea:focus,input:focus{outline:none;border-color:var(
     <span id="session-badge" style="font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px"></span>
     <span id="date-badge" style="font-size:12px;color:var(--ink-mid);font-weight:500"></span>
   </div>
-  <a href="admin.html" style="margin-left:auto;font-size:12px;font-weight:600;color:var(--ink-light);text-decoration:none;padding:5px 12px;border:1.5px solid var(--border);border-radius:7px" id="admin-link">Admin ↗</a>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:10px" id="header-actions">
+    <span id="user-name" style="font-size:12px;color:var(--ink-mid)"></span>
+    <a href="admin.html" style="font-size:12px;font-weight:600;color:var(--ink-light);text-decoration:none;padding:5px 12px;border:1.5px solid var(--border);border-radius:7px" id="admin-link">Admin ↗</a>
+    <button class="btn btn-ghost" style="font-size:13px;padding:5px 12px" onclick="signOut()">Sign Out</button>
+  </div>
 </div>
 
 <!-- PROGRESS -->
@@ -328,12 +332,28 @@ let dogFolderUrls  = {};           // {ownerName: driveUrl} — populated when p
 // INIT
 // ═══════════════════════════════════════════════════════════════════════════
 window.onload = async () => {
+  // Auth guard — redirect to login if no session
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = 'login.html'; return; }
+
+  // Show user name; show Admin link only for admins
+  const { data: profile } = await sb.from('profiles').select('role,name').eq('id', session.user.id).single();
+  document.getElementById('user-name').textContent = profile?.name || session.user.email;
+  if (profile?.role !== 'admin') {
+    document.getElementById('admin-link').style.display = 'none';
+  }
+
   const d = new Date();
   sessionDate = d.toISOString().split('T')[0];
   document.getElementById('session-date').value = sessionDate;
   selectSession('morning');
   await loadRoster();
 };
+
+async function signOut() {
+  await sb.auth.signOut();
+  window.location.href = 'login.html';
+}
 
 async function loadRoster() {
   const rosterEl = document.getElementById('dog-roster');
@@ -414,7 +434,7 @@ function showStep(n) {
   document.getElementById('nav-bar').style.display       = showNav ? 'flex' : 'none';
   document.getElementById('progress-bar').style.display  = showNav ? 'block' : 'none';
   document.getElementById('header-meta').style.display   = showNav ? 'flex' : 'none';
-  document.getElementById('admin-link').style.display    = showNav ? 'none' : 'block';
+  document.getElementById('header-actions').style.display = showNav ? 'none' : 'flex';
   const nextBtn = document.getElementById('next-btn');
   nextBtn.style.display   = n === 5 ? 'none' : 'inline-flex';
   nextBtn.textContent     = n === 4 ? 'Review & Send →' : 'Continue →';
@@ -1072,6 +1092,7 @@ function startNewSession() {
   document.getElementById('mode-toggle').style.pointerEvents = 'auto';
   document.getElementById('mode-toggle').style.opacity       = '1';
   setSendMode('draft');
+  document.getElementById('header-actions').style.display = 'flex';
 
   // Reset date to today
   const d = new Date();
