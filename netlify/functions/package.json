@@ -1,0 +1,8 @@
+{
+  "name": "whatsupdog-functions",
+  "version": "1.0.0",
+  "description": "Netlify serverless functions for What's Up Dog?",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.0.0"
+  }
+}
