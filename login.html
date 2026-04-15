@@ -76,6 +76,25 @@ input:focus{border-color:var(--accent)}
       <button class="btn-ghost" onclick="showLogin()">← Back to sign in</button>
     </div>
   </div>
+
+  <!-- SET PASSWORD VIEW — shown when arriving via invite or recovery link -->
+  <div id="set-password-view" style="display:none">
+    <div style="font-size:13px;color:var(--ink-mid);margin-bottom:16px" id="set-password-intro">
+      Welcome! Choose a password to complete your account setup.
+    </div>
+    <div class="error-msg" id="set-password-error"></div>
+    <div class="form-group">
+      <label>New Password</label>
+      <input type="password" id="new-password" placeholder="At least 8 characters"
+             onkeydown="if(event.key==='Enter')setPassword()">
+    </div>
+    <div class="form-group">
+      <label>Confirm Password</label>
+      <input type="password" id="confirm-password" placeholder="Repeat your password"
+             onkeydown="if(event.key==='Enter')setPassword()">
+    </div>
+    <button class="btn btn-primary" id="set-password-btn" onclick="setPassword()">Set Password & Sign In</button>
+  </div>
 </div>
 
 <script>
@@ -86,8 +105,25 @@ const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { redirectTo: window.location.origin + '/login.html' }
 });
 
-// If already logged in, redirect immediately
+// Detect invite or password recovery tokens in the URL hash
 window.onload = async () => {
+  const hash   = window.location.hash;
+  const params = new URLSearchParams(hash.replace('#', '?'));
+  const type   = params.get('type');
+
+  // Invite or recovery link — show set-password form
+  if (type === 'invite' || type === 'recovery') {
+    // Supabase has already exchanged the token for a session by this point
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      const intro = document.getElementById('set-password-intro');
+      if (type === 'recovery') intro.textContent = 'Enter a new password for your account.';
+      showSetPassword();
+      return;
+    }
+  }
+
+  // Normal load — if already logged in, redirect by role
   const { data: { session } } = await sb.auth.getSession();
   if (session) await redirectByRole(session.user.id);
 };
@@ -166,6 +202,47 @@ async function sendReset() {
 
   btn.disabled  = false;
   btn.textContent = 'Send Reset Link';
+}
+
+async function setPassword() {
+  const password  = document.getElementById('new-password').value;
+  const confirm   = document.getElementById('confirm-password').value;
+  const btn       = document.getElementById('set-password-btn');
+  const errEl     = document.getElementById('set-password-error');
+  errEl.style.display = 'none';
+
+  if (password.length < 8) {
+    errEl.textContent   = 'Password must be at least 8 characters.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (password !== confirm) {
+    errEl.textContent   = 'Passwords don\'t match.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled  = true;
+  btn.innerHTML = '<span class="spin"></span>';
+
+  const { data, error } = await sb.auth.updateUser({ password });
+
+  if (error) {
+    errEl.textContent   = error.message;
+    errEl.style.display = 'block';
+    btn.disabled        = false;
+    btn.textContent     = 'Set Password & Sign In';
+    return;
+  }
+
+  // Password set — redirect by role
+  await redirectByRole(data.user.id);
+}
+
+function showSetPassword() {
+  document.getElementById('login-view').style.display        = 'none';
+  document.getElementById('reset-view').style.display        = 'none';
+  document.getElementById('set-password-view').style.display = 'block';
 }
 
 function showReset() {
